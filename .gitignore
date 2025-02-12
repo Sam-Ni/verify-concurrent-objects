@@ -1,0 +1,10 @@
+.Makefile.generated.d
+Makefile.generated
+Makefile.generated.conf
+Makefile.conf
+.*
+!.gitignore
+*.glob
+*.vo*
+_CoqProject
+*.mk*
