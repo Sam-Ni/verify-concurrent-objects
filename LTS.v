@@ -1,7 +1,12 @@
+Require Import List.
+From VCO Require LibEnv.
+Import ListNotations.
 
 (*
   Concurrent objects are formalized as (restricted) labeled transition systems (lts).
 *)
+
+Notation Pid := nat.
 
 Section LTS.
 
@@ -18,6 +23,7 @@ Structure language_interface :=
   mk_language_interface {
     query: Type;
     reply: Type;
+    valid_query_reply: query -> reply -> Prop;
   }.
 
 (* 
@@ -46,13 +52,13 @@ Structure language_interface :=
 Record lts liA liB: Type := mkLTS {
   state : Type;
   internal : Type;
-  step : state -> internal -> state -> Prop;
+  step : state -> Pid -> internal -> state -> Prop;
   (* valid_query: query liB -> bool; *)
   new_state : state -> Prop;
-  initial_state: state -> query liB -> state -> Prop;
-  at_external: state -> query liA -> state -> Prop;
-  after_external: state -> reply liA -> state -> Prop;
-  final_state: state -> reply liB -> state -> Prop;
+  initial_state: state -> Pid -> query liB -> state -> Prop;
+  at_external: state -> Pid -> query liA -> state -> Prop;
+  after_external: state -> Pid -> reply liA -> state -> Prop;
+  final_state: state -> Pid -> reply liB -> state -> Prop;
 }.
 
 (* 
@@ -65,6 +71,7 @@ Definition li_null :=
   {|
     query := Empty_set;
     reply := Empty_set;
+    valid_query_reply := fun q r => match q, r with end
   |}.
 
 End LTS.
@@ -88,6 +95,10 @@ Section LINK.
   Variable L1: lts liA liB.
   Variable L2: lts liB liC.
 
+  Inductive call_return : Type :=
+  | Call : query liB -> call_return
+  | Return : reply liB -> call_return.
+
   (* 
     (Currently,) linked_state is the product of state L1 and state L2.
     potential problem:
@@ -97,7 +108,7 @@ Section LINK.
   Record linked_state : Type := mkLinkedState {
     L1State : L1.(state);
     L2State : L2.(state);
-    (* call_stack : LibEnv.env ...  *)
+    call_stack : LibEnv.env (call_return)
   }.
 
   Inductive linked_internal : Type :=
@@ -108,15 +119,15 @@ Section LINK.
 
   Definition linked_new_state lst : Prop := 
     L1.(new_state) lst.(L1State) /\ 
-    L2.(new_state) lst.(L2State).
-    (* lst.(call_stack) = nil. *)
+    L2.(new_state) lst.(L2State) /\
+    lst.(call_stack) = nil.
 
-  Inductive linked_initial_state : linked_state -> query liC -> linked_state -> Prop :=
-  | linked_initial_state_L2 : forall lst lst' st2 st2' qc st1,
-      initial_state L2 st2 qc st2' ->
-      lst = mkLinkedState st1 st2 ->
-      lst' = mkLinkedState st1 st2' ->
-      linked_initial_state lst qc lst'
+  Inductive linked_initial_state : linked_state -> Pid -> query liC -> linked_state -> Prop :=
+  | linked_initial_state_L2 : forall lst lst' st2 st2' qc st1 cs pid,
+      initial_state L2 st2 pid qc st2' ->
+      lst = mkLinkedState st1 st2 cs ->
+      lst' = mkLinkedState st1 st2' cs ->
+      linked_initial_state lst pid qc lst'
   .
 
   (* 
@@ -126,55 +137,59 @@ Section LINK.
        (i.e., st2 is waiting for st1 to execute act);
     2. st1 still 'remembers' the arguments passed by st2.
   *)
-  Inductive linked_step : linked_state -> linked_internal -> linked_state -> Prop :=
-  | linked_step_L2_internal : forall st1 st2 st2' act lst lst',
-      step L2 st2 act st2' ->
-      lst = mkLinkedState st1 st2 ->
-      lst' = mkLinkedState st1 st2' ->
-      linked_step lst (intL2 act) lst'
-  | linked_step_L2_push : forall st1 st2 st1' qb lst lst' st2',
-      at_external L2 st2 qb st2' ->
-      lst = mkLinkedState st1 st2 ->
-      initial_state L1 st1 qb st1' ->
-      lst' = mkLinkedState st1' st2 ->
-      linked_step lst (intQuery qb) lst'
-  | linked_step_L1_internal : forall st1 st2 st1' act lst lst',
-      step L1 st1 act st1' ->
-      lst = mkLinkedState st1 st2 ->
-      lst' = mkLinkedState st1' st2 ->
-      linked_step lst (intL1 act) lst'
-  | linked_step_L1_pop : forall st1 st1' rb st2 st2' lst lst',
-      final_state L1 st1 rb st1' ->
-      after_external L2 st2 rb st2' ->
-      lst = mkLinkedState st1 st2 ->
-      lst' = mkLinkedState st1' st2' ->
-      linked_step lst (intReply rb) lst'
+  Inductive linked_step : linked_state -> Pid -> linked_internal -> linked_state -> Prop :=
+  | linked_step_L2_internal : forall st1 st2 st2' act lst lst' cs pid,
+      step L2 st2 pid act st2' ->
+      lst = mkLinkedState st1 st2 cs ->
+      lst' = mkLinkedState st1 st2' cs ->
+      linked_step lst pid (intL2 act) lst'
+  | linked_step_L2_push : forall st1 st2 st1' qb lst lst' st2' cs cs' pid,
+      at_external L2 st2 pid qb st2' ->
+      lst = mkLinkedState st1 st2 cs ->
+      initial_state L1 st1 pid qb st1' ->
+      cs' = (pid, Call qb):: cs ->
+      lst' = mkLinkedState st1' st2 cs' ->
+      linked_step lst pid (intQuery qb) lst'
+  | linked_step_L1_internal : forall st1 st2 st1' act lst lst' cs pid,
+      step L1 st1 pid act st1' ->
+      lst = mkLinkedState st1 st2 cs ->
+      lst' = mkLinkedState st1' st2 cs ->
+      linked_step lst pid (intL1 act) lst'
+  | linked_step_L1_pop : forall st1 st1' rb st2 st2' lst lst' cs pid qb cs1 cs2 cs',
+      final_state L1 st1 pid rb st1' ->
+      after_external L2 st2 pid rb st2' ->
+      valid_query_reply liB qb rb ->
+      cs = cs1 ++ [(pid, Call qb)] ++ cs2 ->
+      lst = mkLinkedState st1 st2 cs ->
+      cs' = cs1 ++ [(pid, Return rb)] ++ cs2 ->
+      lst' = mkLinkedState st1' st2' cs' ->
+      linked_step lst pid (intReply rb) lst'
   .
 
-  Inductive linked_at_external : linked_state -> query liA -> linked_state -> Prop :=
-  | linked_at_external_L1 : forall st1 qa st2 lst st1' lst',
-      at_external L1 st1 qa st1' ->
+  Inductive linked_at_external : linked_state -> Pid -> query liA -> linked_state -> Prop :=
+  | linked_at_external_L1 : forall st1 qa st2 lst st1' lst' cs pid,
+      at_external L1 st1 pid qa st1' ->
       (* at_external L2 st2 qb -> *)
       (* reachable st1 qa qb -> *)
-      lst = mkLinkedState st1 st2 ->
-      lst' = mkLinkedState st1' st2 ->
-      linked_at_external lst qa lst'
+      lst = mkLinkedState st1 st2 cs ->
+      lst' = mkLinkedState st1' st2 cs ->
+      linked_at_external lst pid qa lst'
   .
 
-  Inductive linked_after_external : linked_state -> reply liA -> linked_state -> Prop :=
-  | linked_after_external_L1 : forall st1 ra st1' lst lst' st2,
-      after_external L1 st1 ra st1' ->
-      lst = mkLinkedState st1 st2 ->
-      lst' = mkLinkedState st1' st2 ->
-      linked_after_external lst ra lst'
+  Inductive linked_after_external : linked_state -> Pid -> reply liA -> linked_state -> Prop :=
+  | linked_after_external_L1 : forall st1 ra st1' lst lst' st2 pid cs,
+      after_external L1 st1 pid ra st1' ->
+      lst = mkLinkedState st1 st2 cs ->
+      lst' = mkLinkedState st1' st2 cs ->
+      linked_after_external lst pid ra lst'
   .
 
-  Inductive linked_final_state : linked_state -> reply liC -> linked_state -> Prop :=
-  | linked_final_state_L2 : forall st1 st2 rc st2' lst lst',
-      final_state L2 st2 rc st2' ->
-      lst = mkLinkedState st1 st2 ->
-      lst' = mkLinkedState st1 st2' ->
-      linked_final_state lst rc lst'
+  Inductive linked_final_state : linked_state -> Pid -> reply liC -> linked_state -> Prop :=
+  | linked_final_state_L2 : forall st1 st2 rc st2' lst lst' pid cs,
+      final_state L2 st2 pid rc st2' ->
+      lst = mkLinkedState st1 st2 cs ->
+      lst' = mkLinkedState st1 st2' cs ->
+      linked_final_state lst pid rc lst'
   .
 
   Definition linked_lts : lts liA liC :=

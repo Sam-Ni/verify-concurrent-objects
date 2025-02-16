@@ -61,84 +61,84 @@ Section DCounter.
 
   Import LibEnv.
 
-  Inductive register_counter_initial_state : DCounter_state -> query li_counter -> DCounter_state -> Prop :=
+  Inductive register_counter_initial_state : DCounter_state -> Pid -> query li_counter -> DCounter_state -> Prop :=
   | register_counter_initial_state_inc : forall pc st st' pid r,
       st = mkDCntState pc r ->
       pid # pc ->
       st' = mkDCntState ((pid, DInc1)::pc) r ->
-      register_counter_initial_state st (CntInc pid) st'
+      register_counter_initial_state st pid CntInc st'
   | register_counter_initial_state_read : forall pc st st' pid r,
       st = mkDCntState pc r ->
       pid # pc ->
       st' = mkDCntState ((pid, DRead1)::pc) r ->
-      register_counter_initial_state st (CntRead pid) st'
+      register_counter_initial_state st pid CntRead st'
   .
 
-  Inductive register_counter_final_state : DCounter_state -> reply li_counter -> DCounter_state -> Prop :=
+  Inductive register_counter_final_state : DCounter_state -> Pid -> reply li_counter -> DCounter_state -> Prop :=
   | register_counter_final_state_inc : forall pc st st' pid pc' pc'' r,
       pc = pc' ++ [(pid, DInc7)] ++ pc'' ->
       st = mkDCntState pc r ->
       st' = mkDCntState (pc' ++ pc'') r ->
-      register_counter_final_state st (CntIncOk pid) st'
+      register_counter_final_state st pid CntIncOk st'
   | register_counter_final_state_read : forall pc st st' pid pc' pc'' r ret,
       pc = pc' ++ [(pid, DRead3 ret)] ++ pc'' ->
       st = mkDCntState pc r ->
       st' = mkDCntState (pc' ++ pc'') r ->
-      register_counter_final_state st (CntReadOk pid ret) st'
+      register_counter_final_state st pid (CntReadOk ret) st'
   .
 
-  Inductive register_counter_step : DCounter_state -> DCounter.Internal -> DCounter_state -> Prop :=
+  Inductive register_counter_step : DCounter_state -> Pid -> DCounter.Internal -> DCounter_state -> Prop :=
   | register_counter_step_inc_assign : forall pc st st' pid pc' pc'' ret r,
       pc = pc' ++ [(pid, DInc3 ret)] ++ pc'' ->
       st = mkDCntState pc r ->
       st' = mkDCntState (pc' ++ [(pid, DInc4)] ++ pc'') (fun x => if x =? pid then ret else r x) ->
-      register_counter_step st Assign st'
+      register_counter_step st pid Assign st'
   | register_counter_step_inc_goto_t : forall pc st st' pid pc' pc'' r,
       pc = pc' ++ [(pid, DInc6 true)] ++ pc'' ->
       st = mkDCntState pc r ->
       st' = mkDCntState (pc' ++ [(pid, DInc7)] ++ pc'') r ->
-      register_counter_step st Goto st'
+      register_counter_step st pid Goto st'
   | register_counter_step_inc_goto_f : forall pc st st' pid pc' pc'' r,
       pc = pc' ++ [(pid, DInc6 false)] ++ pc'' ->
       st = mkDCntState pc r ->
       st' = mkDCntState (pc' ++ [(pid, DInc1)] ++ pc'') r ->
-      register_counter_step st Goto st'
+      register_counter_step st pid Goto st'
   .
 
-  Inductive register_counter_at_external : DCounter_state -> query li_register -> DCounter_state -> Prop :=
+  Inductive register_counter_at_external : DCounter_state -> Pid -> query li_register -> DCounter_state -> Prop :=
   | register_counter_at_external_inc_read : forall pc st pid pc' pc'' r st',
       pc = pc' ++ [(pid, DInc1)] ++ pc'' ->
       st = mkDCntState pc r ->
       st' = mkDCntState (pc' ++ [(pid, DInc2)] ++ pc'') r ->
-      register_counter_at_external st (RegRead pid) st'
+      register_counter_at_external st pid RegRead st'
   | register_counter_at_external_inc_cas : forall pc st pid pc' pc'' r st',
       pc = pc' ++ [(pid, DInc4)] ++ pc'' ->
       st = mkDCntState pc r ->
       st' = mkDCntState (pc' ++ [(pid, DInc5)] ++ pc'') r ->
-      register_counter_at_external st (RegCAS pid (r pid) (S (r pid))) st'
+      register_counter_at_external st pid (RegCAS (r pid) (S (r pid))) st'
   | register_counter_at_external_read_read : forall pc st pid pc' pc'' r st',
       pc = pc' ++ [(pid, DRead1)] ++ pc'' ->
       st = mkDCntState pc r ->
       st' = mkDCntState (pc' ++ [(pid, DRead2)] ++ pc'') r ->
-      register_counter_at_external st (RegRead pid) st'
+      register_counter_at_external st pid RegRead st'
   .
 
-  Inductive register_counter_after_external : DCounter_state -> reply li_register -> DCounter_state -> Prop :=
+  Inductive register_counter_after_external : DCounter_state -> Pid -> reply li_register -> DCounter_state -> Prop :=
   | register_counter_after_external_inc_read_ok : forall pc st st' pid pc' pc'' ret r,
       pc = pc' ++ [(pid, DInc2)] ++ pc'' ->
       st = mkDCntState pc r ->
       st' = mkDCntState (pc' ++ [(pid, DInc3 ret)] ++ pc'') r ->
-      register_counter_after_external st (RegReadOk pid ret) st'
+      register_counter_after_external st pid (RegReadOk ret) st'
   | register_counter_after_external_inc_cas : forall pc st st' pid pc' pc'' r ret,
       pc = pc' ++ [(pid, DInc5)] ++ pc'' ->
       st = mkDCntState pc r ->
       st' = mkDCntState (pc' ++ [(pid, DInc6 ret)] ++ pc'') r ->
-      register_counter_after_external st (RegCASOk pid ret) st'
+      register_counter_after_external st pid (RegCASOk ret) st'
   | register_counter_after_external_read_read_ok : forall pc st st' pid pc' pc'' ret r,
       pc = pc' ++ [(pid, DRead1)] ++ pc'' ->
       st = mkDCntState pc r ->
       st' = mkDCntState (pc' ++ [(pid, DRead3 ret)] ++ pc'') r ->
-      register_counter_after_external st (RegReadOk pid ret) st'
+      register_counter_after_external st pid (RegReadOk ret) st'
   .
 
   Definition register_counter_impl : lts Register.li_register Counter.li_counter := mkLTS Register.li_register Counter.li_counter

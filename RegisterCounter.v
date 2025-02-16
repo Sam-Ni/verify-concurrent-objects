@@ -17,30 +17,30 @@ Section RegisterCounter.
 
 Definition register_counter : lts li_null li_counter := linked_lts Register register_counter_impl.
 
-Fixpoint gather_requests (pc : LibEnv.env DCounter_pc) : LibEnv.env Counter.Invocation :=
+Fixpoint gather_requests (pc : LibEnv.env DCounter_pc) : LibEnv.env Counter_query :=
   match pc with
   | nil => nil
   | ins :: pc' => 
       let requests' := gather_requests pc' in
       let (pid, inst) := ins in
         (match inst with
-        | DInc1 => (pid, Inv_Inc)::requests'
-        | DInc2 => (pid, Inv_Inc)::requests'
-        | DInc3 _ => (pid, Inv_Inc)::requests'
-        | DInc4 => (pid, Inv_Inc)::requests'
-        | DInc5 => (pid, Inv_Inc)::requests'
+        | DInc1 => (pid, CntInc)::requests'
+        | DInc2 => (pid, CntInc)::requests'
+        | DInc3 _ => (pid, CntInc)::requests'
+        | DInc4 => (pid, CntInc)::requests'
+        | DInc5 => (pid, CntInc)::requests'
         | DInc6 ret => match ret with
                       | true => requests'
-                      | false => (pid, Inv_Inc)::requests'
+                      | false => (pid, CntInc)::requests'
                       end
         | DInc7 => requests'
-        | DRead1 => (pid, Inv_Read)::requests'
-        | DRead2 => (pid, Inv_Read)::requests'
+        | DRead1 => (pid, CntRead)::requests'
+        | DRead2 => (pid, CntRead)::requests'
         | DRead3 _ => requests'
         end)
   end.
 
-Fixpoint gather_responses (pc : LibEnv.env DCounter_pc) : LibEnv.env Counter.Response :=
+Fixpoint gather_responses (pc : LibEnv.env DCounter_pc) : LibEnv.env Counter_reply :=
   match pc with
   | nil => nil
   | ins :: pc' => 
@@ -53,13 +53,13 @@ Fixpoint gather_responses (pc : LibEnv.env DCounter_pc) : LibEnv.env Counter.Res
         | DInc4 => responses'
         | DInc5 => responses'
         | DInc6 ret => match ret with
-                      | true => (pid, Res_Inc)::responses'
+                      | true => (pid, CntIncOk)::responses'
                       | false => responses'
                       end
-        | DInc7 => (pid, Res_Inc)::responses'
+        | DInc7 => (pid, CntIncOk)::responses'
         | DRead1 => responses' 
         | DRead2 => responses'
-        | DRead3 ret => (pid, Res_Read ret)::responses'
+        | DRead3 ret => (pid, CntReadOk ret)::responses'
         end)
   end.
 
@@ -138,12 +138,13 @@ Proof.
     unfold register_new_state in H0.
     rewrite H0.
     unfold register_counter_new_state in H1.
+    destruct H1.
     rewrite H1. intuition.
   - intros. inversion H0; subst.
     inversion H1; subst.
     -- simpl. unfold f in H. simpl in H.
       intuition. subst.
-      exists (mkCntState ((pid, Inv_Inc):: requests s2) (responses s2) (value s2)).
+      exists (mkCntState ((pid, CntInc):: requests s2) (responses s2) (value s2)), pid.
       intuition.
       2: {
         unfold f. simpl. intuition.
@@ -156,7 +157,7 @@ Proof.
       reflexivity.
     -- simpl. unfold f in H. simpl in H.
       intuition. subst.
-      exists (mkCntState ((pid, Inv_Read):: requests s2) (responses s2) (value s2)).
+      exists (mkCntState ((pid, CntRead):: requests s2) (responses s2) (value s2)), pid.
       intuition.
       2: {
         unfold f. simpl. intuition.
@@ -173,7 +174,7 @@ Proof.
       intuition.
       rewrite gather_requests_dist in H2. simpl in H2.
       rewrite gather_responses_dist in H. simpl in H.
-      exists (mkCntState (requests s2) (gather_responses (pc' ++ pc'')) (value s2)).
+      exists (mkCntState (requests s2) (gather_responses (pc' ++ pc'')) (value s2)), pid.
       intuition.
       2: {
         unfold f. simpl. intuition.
@@ -186,7 +187,7 @@ Proof.
       intuition.
       rewrite gather_requests_dist in H2. simpl in H2.
       rewrite gather_responses_dist in H. simpl in H.
-      exists (mkCntState (requests s2) (gather_responses (pc' ++ pc'')) (value s2)).
+      exists (mkCntState (requests s2) (gather_responses (pc' ++ pc'')) (value s2)), pid.
       intuition.
       2: {
         unfold f. simpl. intuition.
@@ -224,7 +225,7 @@ Proof.
         unfold f in H. simpl in H. intuition.
         subst. simpl in H1.
         destruct (value s2 =? old) eqn:Heq.
-        + exists (mkCntState (requests s2) ((pid, Res_Inc)::responses s2) (S (value s2))).
+        + exists (mkCntState (requests s2) ((pid, CntIncOk)::responses s2) (S (value s2))).
           simpl. intuition.
           ++ eapply Step_Internal with (int:=int_cnt_inc); eauto.
             2: { econstructor; eauto. }
