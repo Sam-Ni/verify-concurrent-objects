@@ -135,6 +135,16 @@ Section Register.
 
   Inductive register_after_external : Register_state -> Pid -> reply li_null -> Register_state -> Prop :=.
 
+  Definition register_valid_int_query int q :=
+    match int, q with
+    | int_cas, RegCAS _ _ => True
+    | int_read, RegRead => True
+    | _, _ => False
+    end.
+
+  Definition register_valid_query_query (qa : query li_null) (qb : query li_register) : Prop :=
+    match qa with end.
+
   Definition Register : lts li_null li_register  := mkLTS li_null li_register
     Register_state
     Internal
@@ -144,6 +154,8 @@ Section Register.
     register_at_external
     register_after_external
     register_final_state
+    register_valid_int_query
+    register_valid_query_query
   .
   
 End Register.

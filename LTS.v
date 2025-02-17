@@ -59,6 +59,8 @@ Record lts liA liB: Type := mkLTS {
   at_external: state -> Pid -> query liA -> state -> Prop;
   after_external: state -> Pid -> reply liA -> state -> Prop;
   final_state: state -> Pid -> reply liB -> state -> Prop;
+  valid_int_query : internal -> query liB -> Prop;
+  valid_query_query : query liA -> query liB -> Prop;
 }.
 
 (* 
@@ -84,6 +86,8 @@ Arguments initial_state {liA} {liB}.
 Arguments at_external {liA} {liB}.
 Arguments after_external {liA} {liB}.
 Arguments final_state {liA} {liB}.
+Arguments valid_int_query {liA} {liB}.
+Arguments valid_query_query {liA} {liB}.
 
 (*
   Compose two lts with the common interface liB.
@@ -150,8 +154,10 @@ Section LINK.
       cs' = (pid, Call qb):: cs ->
       lst' = mkLinkedState st1' st2 cs' ->
       linked_step lst pid (intQuery qb) lst'
-  | linked_step_L1_internal : forall st1 st2 st1' act lst lst' cs pid,
+  | linked_step_L1_internal : forall st1 st2 st1' act lst lst' cs pid cs1 cs2 qb,
       step L1 st1 pid act st1' ->
+      valid_int_query L1 act qb ->
+      cs = cs1 ++ [(pid, Call qb)] ++ cs2 ->
       lst = mkLinkedState st1 st2 cs ->
       lst' = mkLinkedState st1' st2 cs ->
       linked_step lst pid (intL1 act) lst'
@@ -192,6 +198,19 @@ Section LINK.
       linked_final_state lst pid rc lst'
   .
 
+  Definition linked_valid_int_query :=
+    fun int qc => match int with
+    | intL1 act => exists qb, valid_int_query L1 act qb /\ valid_query_query L2 qb qc
+    | intL2 act => valid_int_query L2 act qc
+    | intQuery qb => valid_query_query L2 qb qc
+    | intReply rb => exists qb, valid_query_reply liB qb rb /\ valid_query_query L2 qb qc
+    end.
+
+  Definition linked_query_query :=
+    fun qa qc => 
+      exists qb, valid_query_query L1 qa qb /\
+                  valid_query_query L2 qb qc.
+
   Definition linked_lts : lts liA liC :=
     mkLTS liA liC linked_state
       linked_internal
@@ -200,7 +219,9 @@ Section LINK.
       linked_initial_state
       linked_at_external
       linked_after_external
-      linked_final_state.
+      linked_final_state
+      linked_valid_int_query
+      linked_query_query.
 
 End LINK.
 

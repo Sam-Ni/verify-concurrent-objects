@@ -101,6 +101,16 @@ Section Counter.
 
   Inductive counter_after_external : Counter_state -> Pid -> reply li_null -> Counter_state -> Prop :=.
 
+  Definition counter_valid_int_query int q :=
+    match int, q with
+    | int_cnt_inc, CntInc => True
+    | int_cnt_read, CntRead => True
+    | _, _ => False
+    end.
+
+  Definition counter_valid_query_query (qa : query li_null) (qb : query li_counter) : Prop :=
+    match qa with end.
+
   Definition counter : lts li_null li_counter := mkLTS li_null li_counter
     Counter_state
     Internal
@@ -110,6 +120,8 @@ Section Counter.
     counter_at_external
     counter_after_external
     counter_final_state
+    counter_valid_int_query
+    counter_valid_query_query
   .
   
 End Counter.

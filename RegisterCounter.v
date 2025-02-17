@@ -223,7 +223,8 @@ Proof.
         inversion H1; subst.
         simpl. simpl in H0.
         unfold f in H. simpl in H. intuition.
-        subst. simpl in H1.
+        subst. simpl in H1. simpl in H2.
+        destruct qb; intuition.
         destruct (value s2 =? old) eqn:Heq.
         + exists (mkCntState (requests s2) ((pid, CntIncOk)::responses s2) (S (value s2))).
           simpl. intuition.

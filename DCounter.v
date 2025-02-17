@@ -141,6 +141,23 @@ Section DCounter.
       register_counter_after_external st pid (RegReadOk ret) st'
   .
 
+  Definition register_counter_valid_int_query :=
+    fun int qb =>
+    match int, qb with
+    | Assign, CntInc => True
+    | Goto, CntInc => True
+    | _, _ => False
+    end.
+
+  Definition register_counter_valid_query_query :=
+    fun qa qb =>
+    match qa, qb with
+    | RegCAS _ _, CntInc => True
+    | RegRead, CntInc => True
+    | RegRead, CntRead => True
+    | _, _ => False
+    end.
+
   Definition register_counter_impl : lts Register.li_register Counter.li_counter := mkLTS Register.li_register Counter.li_counter
     DCounter_state
     DCounter.Internal
@@ -150,6 +167,8 @@ Section DCounter.
     register_counter_at_external
     register_counter_after_external
     register_counter_final_state
+    register_counter_valid_int_query
+    register_counter_valid_query_query
   .
   
 End DCounter.
