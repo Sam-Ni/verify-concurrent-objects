@@ -8,6 +8,7 @@ Require Import
   Register
   DCounter
   Counter.
+Import ListNotations.
 
 (* 
   Prove that the composition of register_counter_impl (DCounter.v) and register (Register.v)
@@ -121,6 +122,19 @@ Definition f (s1 : register_counter.(state)) (s2 : counter.(state)) :=
   gather_responses s1.(L2State).(DCounter.pc) = s2.(responses) /\
   s1.(L1State).(Register.value) = s2.(value).
 
+Lemma internal_preserves_request: forall acts pid st st' req res req1 req2 qb res' req1' req2' req' qb' v v',
+  gather_pid_external_events acts pid = [] ->
+  req = req1 ++ [(pid, qb)] ++ req2 ->
+  st = mkRegState req res v ->
+  req' = req1' ++ [(pid, qb')] ++ req2' ->
+  st' = mkRegState req' res' v' ->
+  valid_execution_fragment Register st st' acts ->
+  qb = qb'.
+Proof.
+  
+Qed.
+
+
 (* 
   The proof stuck in the case of fsim_simulation (to be more specific, when the action is int_cas in Register).
   Problem: the rule linked_step_L1_internal is too general 
@@ -144,7 +158,7 @@ Proof.
     inversion H1; subst.
     -- simpl. unfold f in H. simpl in H.
       intuition. subst.
-      exists (mkCntState ((pid, CntInc):: requests s2) (responses s2) (value s2)), pid.
+      exists (mkCntState ((pid, CntInc):: requests s2) (responses s2) (value s2)).
       intuition.
       2: {
         unfold f. simpl. intuition.
@@ -157,7 +171,7 @@ Proof.
       reflexivity.
     -- simpl. unfold f in H. simpl in H.
       intuition. subst.
-      exists (mkCntState ((pid, CntRead):: requests s2) (responses s2) (value s2)), pid.
+      exists (mkCntState ((pid, CntRead):: requests s2) (responses s2) (value s2)).
       intuition.
       2: {
         unfold f. simpl. intuition.
@@ -174,7 +188,7 @@ Proof.
       intuition.
       rewrite gather_requests_dist in H2. simpl in H2.
       rewrite gather_responses_dist in H. simpl in H.
-      exists (mkCntState (requests s2) (gather_responses (pc' ++ pc'')) (value s2)), pid.
+      exists (mkCntState (requests s2) (gather_responses (pc' ++ pc'')) (value s2)).
       intuition.
       2: {
         unfold f. simpl. intuition.
@@ -187,7 +201,7 @@ Proof.
       intuition.
       rewrite gather_requests_dist in H2. simpl in H2.
       rewrite gather_responses_dist in H. simpl in H.
-      exists (mkCntState (requests s2) (gather_responses (pc' ++ pc'')) (value s2)), pid.
+      exists (mkCntState (requests s2) (gather_responses (pc' ++ pc'')) (value s2)).
       intuition.
       2: {
         unfold f. simpl. intuition.
@@ -225,6 +239,17 @@ Proof.
         unfold f in H. simpl in H. intuition.
         subst. simpl in H1. simpl in H2.
         destruct qb; intuition.
+
+        destruct H5 as [lst1 [lst2 [lst2st1 [lst2st2 [st1acts [st2acts [cs3 Htmp]]]]]]].
+        destruct Htmp as [Hbefore Hremain].
+        inversion Hbefore; subst.
+        inversion H5; subst.
+        simpl in Hremain, Hbefore. intuition.
+        inversion H4; subst. clear H4.
+        inversion H7; subst.  
+
+
+
         destruct (value s2 =? old) eqn:Heq.
         + exists (mkCntState (requests s2) ((pid, CntIncOk)::responses s2) (S (value s2))).
           simpl. intuition.

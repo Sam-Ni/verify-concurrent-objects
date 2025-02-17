@@ -1,4 +1,6 @@
-Require Import List.
+Require Import
+  List
+  Nat.
 From VCO Require LibEnv.
 Import ListNotations.
 
@@ -89,6 +91,129 @@ Arguments final_state {liA} {liB}.
 Arguments valid_int_query {liA} {liB}.
 Arguments valid_query_query {liA} {liB}.
 
+
+(* 
+  An object (of type lts li_null liB) can be specified by its observable executions from new_state.
+  A possible execution can be described by a list of events.
+*)
+Section Trace.
+
+Context {liA liB : language_interface}.
+Variable L: lts liA liB.
+
+Inductive _event :=
+| event_invB : query liB -> _event
+| event_resB : reply liB -> _event
+| event_invA : query liA -> _event
+| event_resA : reply liA -> _event
+.
+
+Definition event := (nat * _event)%type.
+
+(* 
+  valid_execution_fragment records the list of events from state st to st'.
+*)
+Inductive valid_execution_fragment (st st' : L.(state)) : list event -> Prop :=
+| Step_None :
+    st = st' ->
+    valid_execution_fragment st st' nil
+| Step_Internal : forall st'' acts (int : L.(internal)) pid,
+    step L st pid int st'' ->
+    valid_execution_fragment st'' st' acts ->
+    valid_execution_fragment st st' acts
+| Step_At_External : forall st'' acts qa pid,
+    at_external L st pid qa st'' ->
+    valid_execution_fragment st'' st' acts ->
+    valid_execution_fragment st st' ((pid, event_invA qa) :: acts)
+| Step_After_External : forall st'' acts ra pid,
+    after_external L st pid ra st'' ->
+    valid_execution_fragment st'' st' acts ->
+    valid_execution_fragment st st' ((pid, event_resA ra) :: acts)
+| Step_Initial_Call : forall st'' acts qb pid,
+    initial_state L st pid qb st'' ->
+    valid_execution_fragment st'' st' acts ->
+    valid_execution_fragment st st' ((pid, event_invB qb) :: acts)
+| Step_Final_Return : forall st'' acts rb pid,
+    final_state L st pid rb st'' ->
+    valid_execution_fragment st'' st' acts ->
+    valid_execution_fragment st st' ((pid, event_resB rb) :: acts)
+.
+
+Hint Constructors valid_execution_fragment : core.
+
+Lemma valid_execution_fragment_join : forall (s s' s'' : L.(state)) a a',
+    valid_execution_fragment s s' a ->
+    valid_execution_fragment s' s'' a' ->
+    valid_execution_fragment s s'' (a ++ a').
+Proof.
+  intros.
+  induction H; subst; simpl; intros; eauto.
+Qed.
+
+Lemma valid_execution_fragment_join' : forall (s s' s'' : L.(state)) a a' a'',
+    valid_execution_fragment s s' a ->
+    valid_execution_fragment s' s'' a' ->
+    a'' = a ++ a' ->
+    valid_execution_fragment s s'' a''.
+Proof.
+  intros; subst; eauto using valid_execution_fragment_join.
+Qed.
+
+Fixpoint gather_pid_external_events events pid : list event :=
+  match events with
+  | nil => nil
+  | (pid', act) :: events' =>
+      let remaining_events := gather_pid_external_events events' pid in
+      if pid =? pid' then (pid', act) :: remaining_events
+                      else remaining_events
+  end.
+
+(* 
+  A list of events 'acts' is a trace of the object
+  if 'acts' is an execution from new_state to some state.
+*)
+Definition in_traces acts :=
+  exists init final, L.(new_state) init /\ valid_execution_fragment init final acts.
+
+Definition reachable st :=
+  exists init acts, L.(new_state) init /\ valid_execution_fragment init st acts.
+
+
+(* 
+  General invariant property of an object.
+*)
+Definition invariant (P : state L -> Prop) :=
+  forall st, reachable st -> P st.
+
+(* 
+  Induction principle used to derive refinement below.
+  at_external and after_external is redundant here since 
+*)
+Definition invariant_ind (P : state L -> Prop) :=
+  (forall st, L.(new_state) st -> P st) /\
+  (forall st st' act pid,
+    P st ->
+    step L st pid act st' ->
+    P st') /\
+  (forall st st' act pid,
+    P st ->
+    initial_state L st pid act st' ->
+    P st') /\
+  (forall st st' act pid,
+    P st ->
+    at_external L st pid act st' ->
+    P st') /\
+  (forall st st' act pid,
+    P st ->
+    after_external L st pid act st' ->
+    P st') /\
+  (forall st st' act pid,
+    P st ->
+    final_state L st pid act st' ->
+    P st').
+
+End Trace.
+
 (*
   Compose two lts with the common interface liB.
   Potential problems (when proving simulation) lie in
@@ -159,6 +284,12 @@ Section LINK.
       valid_int_query L1 act qb ->
       cs = cs1 ++ [(pid, Call qb)] ++ cs2 ->
       lst = mkLinkedState st1 st2 cs ->
+      (exists lst1 lst2 lst2st1 lst2st2 st1acts st2acts cs1,
+        linked_step lst1 pid (intQuery qb) lst2 /\
+        lst2 = mkLinkedState lst2st1 lst2st2 cs1 /\
+        valid_execution_fragment L2 lst2st2 lst.(L2State) st2acts /\
+        valid_execution_fragment L1 lst2st1 lst.(L1State) st1acts /\
+        gather_pid_external_events st1acts pid = []) ->
       lst' = mkLinkedState st1' st2 cs ->
       linked_step lst pid (intL1 act) lst'
   | linked_step_L1_pop : forall st1 st1' rb st2 st2' lst lst' cs pid qb cs1 cs2 cs',

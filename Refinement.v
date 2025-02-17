@@ -3,7 +3,7 @@ Require Import
   LTS.
 Import ListNotations.
 
-(* 
+(* (* 
   An object (of type lts li_null liB) can be specified by its observable executions from new_state.
   A possible execution can be described by a list of events.
 *)
@@ -110,7 +110,7 @@ Definition invariant_ind (P : state L -> Prop) :=
     final_state L st pid act st' ->
     P st').
 
-End Trace.
+End Trace. *)
 
 (* 
   The correctness of an object is described by refinement.
@@ -137,10 +137,10 @@ Record fsim_properties (L1 L2 : lts li_null liB)
       exists s2, new_state L2 s2 /\ match_states s1 s2;
     fsim_match_initial_states:
       forall s1 s1' s2 qb pid, match_states s1 s2 -> initial_state L1 s1 pid qb s1' ->
-      exists s2' pid', initial_state L2 s2 pid' qb s2' /\ match_states s1' s2';
+      exists s2', initial_state L2 s2 pid qb s2' /\ match_states s1' s2';
     fsim_match_final_states:
       forall s1 s1' s2 rb pid, match_states s1 s2 -> final_state L1 s1 pid rb s1' ->
-      exists s2' pid', final_state L2 s2 pid' rb s2' /\ match_states s1' s2';
+      exists s2', final_state L2 s2 pid rb s2' /\ match_states s1' s2';
     fsim_simulation:
       forall s1 s1' s2 int pid, match_states s1 s2 -> step L1 s1 pid int s1' ->
       exists s2', valid_execution_fragment L2 s2 s2' [] /\ match_states s1' s2'
@@ -153,9 +153,9 @@ Definition fsim_properties_inv_ind (L1 L2 : lts li_null liB)
       (forall s1, new_state L1 s1 -> 
       exists s2, new_state L2 s2 /\ match_states s1 s2) /\
       (forall s1 s1' s2 qb pid, inv s1 -> match_states s1 s2 -> initial_state L1 s1 pid qb s1' ->
-      exists s2' pid', initial_state L2 s2 pid' qb s2' /\ match_states s1' s2') /\
+      exists s2', initial_state L2 s2 pid qb s2' /\ match_states s1' s2') /\
       (forall s1 s1' s2 rb pid, inv s1 -> match_states s1 s2 -> final_state L1 s1 pid rb s1' ->
-      exists s2' pid', final_state L2 s2 pid' rb s2' /\ match_states s1' s2') /\
+      exists s2', final_state L2 s2 pid rb s2' /\ match_states s1' s2') /\
       (forall s1 s1' s2 int pid, inv s1 -> match_states s1 s2 -> step L1 s1 pid int s1' ->
       exists s2', valid_execution_fragment L2 s2 s2' [] /\ match_states s1' s2')
   .
@@ -186,12 +186,14 @@ Proof.
     inversion IHHtrace1 as [s2 Hs2].
     eexists; subst; intuition; eauto.
     eapply valid_execution_fragment_join'; eauto.
+  - destruct qa.
+  - destruct ra.
   - destruct Hinv as [Hinvstart [Hinvstep [Hinvinit [Hinvat [Hinvafter Hinvfinal]]]]].
     assert (inv st) as Hinvst by eauto.
     assert (inv st'') as Hinvst'' by eauto.
     destruct Hrel_trace as [Hrel_trace_init [Hrel_trace_final Hrel_trace_step]].
     specialize (Hrel_trace_init st st'' s2' qb pid Hinvst Hrel H).
-    inversion Hrel_trace_init as [s2'' [pid' [Hs2''rel Hs2''valid]]].
+    inversion Hrel_trace_init as [s2'' [Hs2''rel Hs2''valid]].
     specialize (IHHtrace1 Hinvst'' s2'' Hs2''valid).
     inversion IHHtrace1 as [s2 Hs2].
     eexists; subst; intuition; eauto.
@@ -201,7 +203,7 @@ Proof.
     assert (inv st'') as Hinvst'' by eauto.
     destruct Hrel_trace as [Hrel_trace_init [Hrel_trace_final Hrel_trace_step]].
     specialize (Hrel_trace_final st st'' s2' rb pid Hinvst Hrel H).
-    inversion Hrel_trace_final as [s2'' [pid' [Hs2''rel Hs2''valid]]].
+    inversion Hrel_trace_final as [s2'' [Hs2''rel Hs2''valid]].
     specialize (IHHtrace1 Hinvst'' s2'' Hs2''valid).
     inversion IHHtrace1 as [s2 Hs2].
     eexists; subst; intuition; eauto.
