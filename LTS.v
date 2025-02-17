@@ -101,6 +101,15 @@ Section Trace.
 Context {liA liB : language_interface}.
 Variable L: lts liA liB.
 
+Definition automaton_step st st' : Prop :=
+  exists pid,
+  ((exists qb, initial_state L st pid qb st') \/
+  (exists rb, final_state L st pid rb st') \/
+  (exists qa, at_external L st pid qa st') \/
+  (exists ra, after_external L st pid ra st') \/
+  (exists int, step L st pid int st')
+  ).
+
 Inductive _event :=
 | event_invB : query liB -> _event
 | event_resB : reply liB -> _event

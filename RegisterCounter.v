@@ -122,19 +122,6 @@ Definition f (s1 : register_counter.(state)) (s2 : counter.(state)) :=
   gather_responses s1.(L2State).(DCounter.pc) = s2.(responses) /\
   s1.(L1State).(Register.value) = s2.(value).
 
-Lemma internal_preserves_request: forall acts pid st st' req res req1 req2 qb res' req1' req2' req' qb' v v',
-  gather_pid_external_events acts pid = [] ->
-  req = req1 ++ [(pid, qb)] ++ req2 ->
-  st = mkRegState req res v ->
-  req' = req1' ++ [(pid, qb')] ++ req2' ->
-  st' = mkRegState req' res' v' ->
-  valid_execution_fragment Register st st' acts ->
-  qb = qb'.
-Proof.
-  
-Qed.
-
-
 (* 
   The proof stuck in the case of fsim_simulation (to be more specific, when the action is int_cas in Register).
   Problem: the rule linked_step_L1_internal is too general 
