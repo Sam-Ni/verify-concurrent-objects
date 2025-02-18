@@ -139,7 +139,7 @@ Proof.
       simpl. intuition; econstructor.
     -- simpl in H.
       inversion H0; subst.
-      + inversion H2; subst. simpl. assumption.
+      + simpl. inversion H3; subst. simpl. assumption.
       + simpl. inversion H2; subst.
         eapply reg_initial_preserves_ok; eauto.
       + simpl. inversion H4; subst.
@@ -220,13 +220,13 @@ Proof.
       rewrite gather_responses_dist. rewrite H5. reflexivity.
   - intros. inversion H1; subst.
     -- clear H1.
-        simpl in H2.
-        simpl in H0. exists s2.
+        simpl in H.
+        simpl in H3. exists s2.
         intuition.
         econstructor; eauto.
         unfold f. simpl.
         unfold f in H0. simpl in H0.
-        inversion H2; subst; simpl in H0; simpl;
+        inversion H3; subst; simpl in H0; simpl;
         rewrite gather_requests_dist in H0;
         rewrite gather_responses_dist in H0;
         rewrite gather_requests_dist;

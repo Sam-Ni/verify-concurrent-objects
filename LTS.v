@@ -268,6 +268,8 @@ Section LINK.
       linked_initial_state lst pid qc lst'
   .
 
+  Import LibEnv.
+
   (* 
     Problem: the rule linked_step_L1_internal is too general!
     We must add additional constraints:
@@ -277,6 +279,7 @@ Section LINK.
   *)
   Inductive linked_step : linked_state -> Pid -> linked_internal -> linked_state -> Prop :=
   | linked_step_L2_internal : forall st1 st2 st2' act lst lst' cs pid,
+      pid # cs -> (* L2 is enabled by pid only if pid is not blocking for calling L1 *)
       step L2 st2 pid act st2' ->
       lst = mkLinkedState st1 st2 cs ->
       lst' = mkLinkedState st1 st2' cs ->
@@ -293,9 +296,9 @@ Section LINK.
       valid_int_query L1 act qb ->
       cs = cs1 ++ [(pid, Call qb)] ++ cs2 ->
       lst = mkLinkedState st1 st2 cs ->
-      (exists lst1 lst2 lst2st1 lst2st2 st1acts st2acts cs1,
+      (exists lst1 lst2 lst2st1 lst2st2 st1acts st2acts cs',
         linked_step lst1 pid (intQuery qb) lst2 /\
-        lst2 = mkLinkedState lst2st1 lst2st2 cs1 /\
+        lst2 = mkLinkedState lst2st1 lst2st2 cs' /\
         valid_execution_fragment L2 lst2st2 lst.(L2State) st2acts /\
         valid_execution_fragment L1 lst2st1 lst.(L1State) st1acts /\
         gather_pid_external_events st1acts pid = []) ->
