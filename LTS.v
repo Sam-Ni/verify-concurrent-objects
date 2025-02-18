@@ -286,7 +286,7 @@ Section LINK.
       lst = mkLinkedState st1 st2 cs ->
       initial_state L1 st1 pid qb st1' ->
       cs' = (pid, Call qb):: cs ->
-      lst' = mkLinkedState st1' st2 cs' ->
+      lst' = mkLinkedState st1' st2' cs' ->
       linked_step lst pid (intQuery qb) lst'
   | linked_step_L1_internal : forall st1 st2 st1' act lst lst' cs pid cs1 cs2 qb,
       step L1 st1 pid act st1' ->

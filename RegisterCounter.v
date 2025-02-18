@@ -235,18 +235,22 @@ Proof.
     -- exists s2. intuition.
       econstructor; eauto.
       unfold f. simpl.
-      unfold f in H0. simpl in H0. intuition.
-      simpl in H4. rewrite <-H6.
-      inversion H4; subst.
-      --- reflexivity.
-      --- reflexivity.
+      unfold f in H0. simpl in H0.
+      inversion H2; subst; simpl in *;
+      rewrite gather_requests_dist in H0;
+        rewrite gather_responses_dist in H0;
+        simpl in H0;
+        rewrite gather_requests_dist;
+        rewrite gather_responses_dist;
+        simpl; inversion H4; subst; simpl in *;
+        intuition.
     -- destruct act.
-      --- simpl in H2.
-        inversion H2; subst.
-        simpl. simpl in H1.
-        unfold f in H0. simpl in H0. intuition.
-        subst. simpl in H2. simpl in H3.
+      --- simpl in *.
         destruct qb; intuition.
+        inversion H2; subst.
+        simpl in *.
+        unfold f in H0. simpl in H0. intuition.
+        subst. simpl in *.
 
         destruct H6 as [lst1 [lst2 [lst2st1 [lst2st2 [st1acts [st2acts [cs3 Htmp]]]]]]].
         destruct Htmp as [Hbefore Hremain].
@@ -255,11 +259,11 @@ Proof.
         simpl in Hremain, Hbefore. intuition.
         inversion H6; subst. clear H6.
         inversion H9; subst.
-        assert (RegCAS (r pid) (S (r pid)) = RegCAS old new).
+        assert (RegCAS (r pid) (S (r pid)) = RegCAS old0 new0).
         eapply internal_preserves_request
         with (st:= mkRegState ((pid, RegCAS (r pid) (S (r pid))) :: inv)
                               res0 v)
-        (st':= mkRegState (inv' ++ (pid, RegCAS old new) :: inv'')
+        (st':= mkRegState (inv' ++ (pid, RegCAS old0 new0) :: inv'')
                                 res (value s2)); simpl; eauto.
         unfold binds. simpl. rewrite Nat.eqb_refl. reflexivity.
         unfold RegStateWF. simpl. intuition.
@@ -268,6 +272,8 @@ Proof.
         unfold binds. simpl. rewrite Nat.eqb_refl. reflexivity.
         apply ok_middle_inv in H5; intuition.
         inversion H6; subst. clear H6.
+        exists (mkCntState (requests s2) (responses s2) (S (value s2))).
+
         simpl.
         f_equal.
 
