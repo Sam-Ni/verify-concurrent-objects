@@ -1,7 +1,7 @@
 Require Import
   List
   LTS
-  Nat
+  Arith
   LibVar
   LibEnv
   Refinement
@@ -129,8 +129,29 @@ Definition f (s1 : register_counter.(state)) (s2 : counter.(state)) :=
 *)
 Theorem register_counter_correct: refines register_counter counter.
 Proof.
-  eapply forward_simulation with (f:=f).
-  constructor.
+  eapply forward_simulation_inv_ind with (f:=f) (inv:= fun (st : register_counter.(state)) => RegStateWF st.(L1State)).
+  unfold fsim_properties_inv_ind. intuition.
+  - simpl. unfold invariant_ind. simpl. intuition; destruct st; simpl.
+    -- unfold linked_new_state in H. simpl in H.
+      intuition. unfold RegStateWF.
+      unfold register_new_state in H0.
+      inversion H0; subst. unfold new_register.
+      simpl. intuition; econstructor.
+    -- simpl in H.
+      inversion H0; subst.
+      + inversion H2; subst. simpl. assumption.
+      + simpl. inversion H2; subst.
+        eapply reg_initial_preserves_ok; eauto.
+      + simpl. inversion H4; subst.
+        eapply reg_step_preserves_ok; eauto.
+      + simpl. inversion H5; subst.
+        eapply reg_final_state_preserves_ok; eauto.
+    -- simpl in H.
+      inversion H0; subst.
+      simpl. inversion H2; subst; assumption.
+    -- simpl in H.
+      inversion H0; subst.
+      simpl. inversion H2; subst; assumption.
   - intros. exists new_counter. intuition.
     reflexivity. unfold f.
     simpl in H.
@@ -141,99 +162,116 @@ Proof.
     unfold register_counter_new_state in H1.
     destruct H1.
     rewrite H1. intuition.
-  - intros. inversion H0; subst.
-    inversion H1; subst.
-    -- simpl. unfold f in H. simpl in H.
+  - intros. inversion H1; subst.
+    inversion H2; subst.
+    -- simpl. unfold f in H0. simpl in H0.
       intuition. subst.
       exists (mkCntState ((pid, CntInc):: requests s2) (responses s2) (value s2)).
       intuition.
       2: {
         unfold f. simpl. intuition.
-        rewrite H2. reflexivity.
+        rewrite H3. reflexivity.
       }
       econstructor; eauto.
-      rewrite <-H2. apply gather_requests_preserves_pid_notin; auto.
-      rewrite <-H. apply gather_responses_preserves_pid_notin; auto.
+      rewrite <-H3. apply gather_requests_preserves_pid_notin; auto.
+      rewrite <-H0. apply gather_responses_preserves_pid_notin; auto.
       destruct s2.
       reflexivity.
-    -- simpl. unfold f in H. simpl in H.
+    -- simpl. unfold f in H0. simpl in H0.
       intuition. subst.
       exists (mkCntState ((pid, CntRead):: requests s2) (responses s2) (value s2)).
       intuition.
       2: {
         unfold f. simpl. intuition.
-        rewrite H2. reflexivity.
+        rewrite H3. reflexivity.
       }
       econstructor; eauto.
-      rewrite <-H2. apply gather_requests_preserves_pid_notin; auto.
-      rewrite <-H. apply gather_responses_preserves_pid_notin; auto.
+      rewrite <-H3. apply gather_requests_preserves_pid_notin; auto.
+      rewrite <-H0. apply gather_responses_preserves_pid_notin; auto.
       destruct s2.
       reflexivity.
-  - intros. inversion H0; subst.
-    inversion H1; subst.
-    -- simpl. unfold f in H. simpl in H.
+  - intros. inversion H1; subst.
+    inversion H2; subst.
+    -- simpl. unfold f in H0. simpl in H0.
       intuition.
-      rewrite gather_requests_dist in H2. simpl in H2.
-      rewrite gather_responses_dist in H. simpl in H.
+      rewrite gather_requests_dist in H3. simpl in H3.
+      rewrite gather_responses_dist in H0. simpl in H0.
       exists (mkCntState (requests s2) (gather_responses (pc' ++ pc'')) (value s2)).
       intuition.
       2: {
         unfold f. simpl. intuition.
-        rewrite <-H2. apply gather_requests_dist.
+        rewrite <-H3. apply gather_requests_dist.
       }
       eapply counter_final_state_inc with (inv:=requests s2) (res:=responses s2); eauto.
-      rewrite <-H. simpl. eauto. destruct s2. eauto.
-      rewrite gather_responses_dist. rewrite H4. reflexivity.
-    -- simpl. unfold f in H. simpl in H.
+      rewrite <-H0. simpl. eauto. destruct s2. eauto.
+      rewrite gather_responses_dist. rewrite H5. reflexivity.
+    -- simpl. unfold f in H0. simpl in H0.
       intuition.
-      rewrite gather_requests_dist in H2. simpl in H2.
-      rewrite gather_responses_dist in H. simpl in H.
+      rewrite gather_requests_dist in H3. simpl in H3.
+      rewrite gather_responses_dist in H0. simpl in H0.
       exists (mkCntState (requests s2) (gather_responses (pc' ++ pc'')) (value s2)).
       intuition.
       2: {
         unfold f. simpl. intuition.
-        rewrite <-H2. apply gather_requests_dist.
+        rewrite <-H3. apply gather_requests_dist.
       }
       eapply counter_final_state_read with (inv:=requests s2) (res:=responses s2); eauto.
-      rewrite <-H. simpl. eauto. destruct s2. eauto.
-      rewrite gather_responses_dist. rewrite H4. reflexivity.
-  - intros. inversion H0; subst.
-    -- clear H0.
-        simpl in H1.
-        simpl in H. exists s2.
+      rewrite <-H0. simpl. eauto. destruct s2. eauto.
+      rewrite gather_responses_dist. rewrite H5. reflexivity.
+  - intros. inversion H1; subst.
+    -- clear H1.
+        simpl in H2.
+        simpl in H0. exists s2.
         intuition.
         econstructor; eauto.
         unfold f. simpl.
-        unfold f in H. simpl in H.
-        inversion H1; subst; simpl in H; simpl;
-        rewrite gather_requests_dist in H;
-        rewrite gather_responses_dist in H;
+        unfold f in H0. simpl in H0.
+        inversion H2; subst; simpl in H0; simpl;
+        rewrite gather_requests_dist in H0;
+        rewrite gather_responses_dist in H0;
         rewrite gather_requests_dist;
         rewrite gather_responses_dist;
-        simpl in H; simpl; intuition.
+        simpl in H0; simpl; intuition.
     -- exists s2. intuition.
       econstructor; eauto.
       unfold f. simpl.
-      unfold f in H. simpl in H. intuition.
-      simpl in H3. rewrite <-H5.
-      inversion H3; subst.
+      unfold f in H0. simpl in H0. intuition.
+      simpl in H4. rewrite <-H6.
+      inversion H4; subst.
       --- reflexivity.
       --- reflexivity.
     -- destruct act.
-      --- simpl in H1.
-        inversion H1; subst.
-        simpl. simpl in H0.
-        unfold f in H. simpl in H. intuition.
-        subst. simpl in H1. simpl in H2.
+      --- simpl in H2.
+        inversion H2; subst.
+        simpl. simpl in H1.
+        unfold f in H0. simpl in H0. intuition.
+        subst. simpl in H2. simpl in H3.
         destruct qb; intuition.
 
-        destruct H5 as [lst1 [lst2 [lst2st1 [lst2st2 [st1acts [st2acts [cs3 Htmp]]]]]]].
+        destruct H6 as [lst1 [lst2 [lst2st1 [lst2st2 [st1acts [st2acts [cs3 Htmp]]]]]]].
         destruct Htmp as [Hbefore Hremain].
         inversion Hbefore; subst.
-        inversion H5; subst.
+        inversion H11; subst.
         simpl in Hremain, Hbefore. intuition.
-        inversion H4; subst. clear H4.
-        inversion H7; subst.  
+        inversion H6; subst. clear H6.
+        inversion H9; subst.
+        assert (RegCAS (r pid) (S (r pid)) = RegCAS old new).
+        eapply internal_preserves_request
+        with (st:= mkRegState ((pid, RegCAS (r pid) (S (r pid))) :: inv)
+                              res0 v)
+        (st':= mkRegState (inv' ++ (pid, RegCAS old new) :: inv'')
+                                res (value s2)); simpl; eauto.
+        unfold binds. simpl. rewrite Nat.eqb_refl. reflexivity.
+        unfold RegStateWF. simpl. intuition.
+        econstructor; eauto.
+        simpl. eapply binds_concat_left.
+        unfold binds. simpl. rewrite Nat.eqb_refl. reflexivity.
+        apply ok_middle_inv in H5; intuition.
+        inversion H6; subst. clear H6.
+        simpl.
+        f_equal.
+
+        clear H9.  
 
 
 

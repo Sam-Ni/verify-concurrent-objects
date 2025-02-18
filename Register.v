@@ -341,11 +341,25 @@ Proof.
       inversion H1; subst; simpl; assumption.
 Qed.
 
-Lemma initial_preserves_binds: forall st st',.
+Lemma initial_preserves_binds: forall st st' pid qb pid' qb',
+  binds pid qb st.(requests) ->
+  initial_state Register st pid' qb' st' ->
+  pid <> pid' ->
+  binds pid qb st'.(requests).
 Proof.
-  
+  inversion 2; subst; simpl; intros;
+  apply binds_push_neq; auto.
 Qed.
 
+Lemma final_preserves_binds: forall st st' pid rb pid' rb',
+  binds pid rb st.(requests) ->
+  final_state Register st pid' rb' st' ->
+  pid <> pid' ->
+  binds pid rb st'.(requests).
+Proof.
+  inversion 2; subst; simpl; intros;
+  auto.
+Qed.
 
 Lemma internal_preserves_request: forall acts pid st st' qb qb',
   gather_pid_external_events acts pid = [] ->
@@ -386,14 +400,16 @@ Proof.
     destruct (pid =? pid0)eqn:Heq.
     -- inversion H.
     -- apply IHvalid_execution_fragment; auto.
-
-
-        
-    --
-
-
-
-    
+      eapply initial_preserves_binds; eauto.
+      apply Nat.eqb_neq; auto.
+      eapply reg_initial_preserves_ok; eauto.
+  - simpl in H.
+    destruct (pid =? pid0)eqn:Heq.
+    -- inversion H.
+    -- apply IHvalid_execution_fragment; auto.
+      eapply final_preserves_binds; eauto.
+      apply Nat.eqb_neq; auto.
+      eapply reg_final_state_preserves_ok; eauto.
 Qed.
 
 End Properties.
