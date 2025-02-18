@@ -247,8 +247,8 @@ Proof.
     eapply reg_step_preserves_ok; eauto.
 Qed.
 
-Lemma valid_execution_preserves_ok: forall st st' acts,
-  valid_execution_fragment Register st st' acts ->
+Lemma valid_execution_preserves_ok: forall st st' acts in_acts,
+  valid_execution_fragment Register st st' acts in_acts ->
   RegStateWF st ->
   RegStateWF st'.
 Proof.
@@ -266,7 +266,7 @@ Lemma reachable_inv: forall st,
   RegStateWF st.
 Proof.
   intros. unfold reachable in H.
-  destruct H as [init [acts [Hnew Hexe]]].
+  destruct H as [init [acts [in_acts [Hnew Hexe]]]].
   eapply valid_execution_preserves_ok; eauto.
   inversion Hnew; subst.
   unfold new_register.
@@ -287,10 +287,10 @@ Proof.
     -- apply IHok; eauto.
 Qed.
 
-Lemma internal_preserves_notin: forall acts pid st st',
+Lemma internal_preserves_notin: forall acts in_acts pid st st',
   gather_pid_external_events acts pid = [] ->
   pid # st.(requests) ->
-  valid_execution_fragment Register st st' acts ->
+  valid_execution_fragment Register st st' acts in_acts ->
   pid # st'.(requests).
 Proof.
   intros.
@@ -361,12 +361,12 @@ Proof.
   auto.
 Qed.
 
-Lemma internal_preserves_request: forall acts pid st st' qb qb',
+Lemma internal_preserves_request: forall acts in_acts pid st st' qb qb',
   gather_pid_external_events acts pid = [] ->
   binds pid qb st.(requests) ->
   RegStateWF st ->
   binds pid qb' st'.(requests) ->
-  valid_execution_fragment Register st st' acts ->
+  valid_execution_fragment Register st st' acts in_acts ->
   qb = qb'.
 Proof.
   intros. induction H3.

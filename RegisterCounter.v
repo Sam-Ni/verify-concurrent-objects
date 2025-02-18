@@ -221,7 +221,7 @@ Proof.
   - intros. inversion H1; subst.
     -- clear H1.
         simpl in H.
-        simpl in H3. exists s2.
+        simpl in H3. exists s2, nil.
         intuition.
         econstructor; eauto.
         unfold f. simpl.
@@ -232,7 +232,7 @@ Proof.
         rewrite gather_requests_dist;
         rewrite gather_responses_dist;
         simpl in H0; simpl; intuition.
-    -- exists s2. intuition.
+    -- exists s2, nil. intuition.
       econstructor; eauto.
       unfold f. simpl.
       unfold f in H0. simpl in H0.

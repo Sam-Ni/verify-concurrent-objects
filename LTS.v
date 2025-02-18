@@ -119,51 +119,54 @@ Inductive _event :=
 
 Definition event := (nat * _event)%type.
 
+Definition int_event := (nat * internal L)%type.
+
 (* 
   valid_execution_fragment records the list of events from state st to st'.
 *)
-Inductive valid_execution_fragment (st st' : L.(state)) : list event -> Prop :=
+Inductive valid_execution_fragment (st st' : L.(state)) : list event -> list int_event -> Prop :=
 | Step_None :
     st = st' ->
-    valid_execution_fragment st st' nil
-| Step_Internal : forall st'' acts (int : L.(internal)) pid,
+    valid_execution_fragment st st' nil nil
+| Step_Internal : forall st'' acts in_acts (int : L.(internal)) pid,
     step L st pid int st'' ->
-    valid_execution_fragment st'' st' acts ->
-    valid_execution_fragment st st' acts
-| Step_At_External : forall st'' acts qa pid,
+    valid_execution_fragment st'' st' acts in_acts ->
+    valid_execution_fragment st st' acts ((pid, int) :: in_acts)
+| Step_At_External : forall st'' acts in_acts qa pid,
     at_external L st pid qa st'' ->
-    valid_execution_fragment st'' st' acts ->
-    valid_execution_fragment st st' ((pid, event_invA qa) :: acts)
-| Step_After_External : forall st'' acts ra pid,
+    valid_execution_fragment st'' st' acts in_acts ->
+    valid_execution_fragment st st' ((pid, event_invA qa) :: acts) in_acts
+| Step_After_External : forall st'' acts in_acts ra pid,
     after_external L st pid ra st'' ->
-    valid_execution_fragment st'' st' acts ->
-    valid_execution_fragment st st' ((pid, event_resA ra) :: acts)
-| Step_Initial_Call : forall st'' acts qb pid,
+    valid_execution_fragment st'' st' acts in_acts ->
+    valid_execution_fragment st st' ((pid, event_resA ra) :: acts) in_acts
+| Step_Initial_Call : forall st'' acts in_acts qb pid,
     initial_state L st pid qb st'' ->
-    valid_execution_fragment st'' st' acts ->
-    valid_execution_fragment st st' ((pid, event_invB qb) :: acts)
-| Step_Final_Return : forall st'' acts rb pid,
+    valid_execution_fragment st'' st' acts in_acts ->
+    valid_execution_fragment st st' ((pid, event_invB qb) :: acts) in_acts
+| Step_Final_Return : forall st'' acts in_acts rb pid,
     final_state L st pid rb st'' ->
-    valid_execution_fragment st'' st' acts ->
-    valid_execution_fragment st st' ((pid, event_resB rb) :: acts)
+    valid_execution_fragment st'' st' acts in_acts ->
+    valid_execution_fragment st st' ((pid, event_resB rb) :: acts) in_acts
 .
 
 Hint Constructors valid_execution_fragment : core.
 
-Lemma valid_execution_fragment_join : forall (s s' s'' : L.(state)) a a',
-    valid_execution_fragment s s' a ->
-    valid_execution_fragment s' s'' a' ->
-    valid_execution_fragment s s'' (a ++ a').
+Lemma valid_execution_fragment_join : forall (s s' s'' : L.(state)) a a' i i',
+    valid_execution_fragment s s' a i ->
+    valid_execution_fragment s' s'' a' i' ->
+    valid_execution_fragment s s'' (a ++ a') (i ++ i').
 Proof.
   intros.
   induction H; subst; simpl; intros; eauto.
 Qed.
 
-Lemma valid_execution_fragment_join' : forall (s s' s'' : L.(state)) a a' a'',
-    valid_execution_fragment s s' a ->
-    valid_execution_fragment s' s'' a' ->
+Lemma valid_execution_fragment_join' : forall (s s' s'' : L.(state)) a a' a'' i i' i'',
+    valid_execution_fragment s s' a i ->
+    valid_execution_fragment s' s'' a' i' ->
     a'' = a ++ a' ->
-    valid_execution_fragment s s'' a''.
+    i'' = i ++ i' ->
+    valid_execution_fragment s s'' a'' i''.
 Proof.
   intros; subst; eauto using valid_execution_fragment_join.
 Qed.
@@ -182,10 +185,10 @@ Fixpoint gather_pid_external_events events pid : list event :=
   if 'acts' is an execution from new_state to some state.
 *)
 Definition in_traces acts :=
-  exists init final, L.(new_state) init /\ valid_execution_fragment init final acts.
+  exists init final in_acts, L.(new_state) init /\ valid_execution_fragment init final acts in_acts.
 
 Definition reachable st :=
-  exists init acts, L.(new_state) init /\ valid_execution_fragment init st acts.
+  exists init acts in_acts, L.(new_state) init /\ valid_execution_fragment init st acts in_acts.
 
 
 (* 
@@ -296,11 +299,11 @@ Section LINK.
       valid_int_query L1 act qb ->
       cs = cs1 ++ [(pid, Call qb)] ++ cs2 ->
       lst = mkLinkedState st1 st2 cs ->
-      (exists lst1 lst2 lst2st1 lst2st2 st1acts st2acts cs',
+      (exists lst1 lst2 lst2st1 lst2st2 st1acts st2acts cs' st2in_acts st1in_acts,
         linked_step lst1 pid (intQuery qb) lst2 /\
         lst2 = mkLinkedState lst2st1 lst2st2 cs' /\
-        valid_execution_fragment L2 lst2st2 lst.(L2State) st2acts /\
-        valid_execution_fragment L1 lst2st1 lst.(L1State) st1acts /\
+        valid_execution_fragment L2 lst2st2 lst.(L2State) st2acts st2in_acts /\
+        valid_execution_fragment L1 lst2st1 lst.(L1State) st1acts st1in_acts /\
         gather_pid_external_events st1acts pid = []) ->
       lst' = mkLinkedState st1' st2 cs ->
       linked_step lst pid (intL1 act) lst'

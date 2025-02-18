@@ -143,7 +143,7 @@ Record fsim_properties (L1 L2 : lts li_null liB)
       exists s2', final_state L2 s2 pid rb s2' /\ match_states s1' s2';
     fsim_simulation:
       forall s1 s1' s2 int pid, match_states s1 s2 -> step L1 s1 pid int s1' ->
-      exists s2', valid_execution_fragment L2 s2 s2' [] /\ match_states s1' s2'
+      exists s2' in_acts, valid_execution_fragment L2 s2 s2' [] in_acts /\ match_states s1' s2'
   }.
 
 Definition fsim_properties_inv_ind (L1 L2 : lts li_null liB)
@@ -157,33 +157,34 @@ Definition fsim_properties_inv_ind (L1 L2 : lts li_null liB)
       (forall s1 s1' s2 rb pid, inv s1 -> match_states s1 s2 -> final_state L1 s1 pid rb s1' ->
       exists s2', final_state L2 s2 pid rb s2' /\ match_states s1' s2') /\
       (forall s1 s1' s2 int pid, inv s1 -> match_states s1 s2 -> step L1 s1 pid int s1' ->
-      exists s2', valid_execution_fragment L2 s2 s2' [] /\ match_states s1' s2')
+      exists s2' in_acts, valid_execution_fragment L2 s2 s2' [] in_acts /\ match_states s1' s2')
   .
 
 Lemma forward_simulation_inv_ind_reconstruct: 
-  forall (L1 L2 : lts li_null liB) f inv s1' s1 acts s2',
+  forall (L1 L2 : lts li_null liB) f inv s1' s1 acts in_acts s2',
   fsim_properties_inv_ind _ _ f inv ->
-  valid_execution_fragment L1 s1' s1 acts ->
+  valid_execution_fragment L1 s1' s1 acts in_acts ->
   inv s1' ->
   f s1' s2' ->
-  exists s2,
-    f s1 s2 /\ valid_execution_fragment L2 s2' s2 acts.
+  exists s2 in_acts',
+    f s1 s2 /\ valid_execution_fragment L2 s2' s2 acts in_acts'.
 Proof.
-  intros L1 L2 f inv s1' s1 acts s2'.
+  intros L1 L2 f inv s1' s1 acts in_acts s2'.
   intros Hforward Htrace1 Hrelinit.
   inversion Hforward as [Hinv [_ Hrel_trace]].
   generalize dependent s2'.
   induction Htrace1; subst; eauto; intros s2' Hrel.
-  - exists s2'. intuition.
+  - exists s2'. exists nil. intuition.
     econstructor; eauto.
   - destruct Hinv as [Hinvstart [Hinvstep [Hinvinit [Hinvat [Hinvafter Hinvfinal]]]]].
     assert (inv st) as Hinvst by eauto.
     assert (inv st'') as Hinvst'' by eauto.
     destruct Hrel_trace as [Hrel_trace_init [Hrel_trace_final Hrel_trace_step]].
     specialize (Hrel_trace_step st st'' s2' int pid Hinvst Hrel H).
-    inversion Hrel_trace_step as [s2'' [Hs2''rel Hs2''valid]].
+    inversion Hrel_trace_step as [s2'' [in_acts'' [Hs2''rel Hs2''valid]]].
     specialize (IHHtrace1 Hinvst'' s2'' Hs2''valid).
-    inversion IHHtrace1 as [s2 Hs2].
+    inversion IHHtrace1 as [s2 [in_acts' Hs2]].
+    eexists; subst; intuition; eauto.
     eexists; subst; intuition; eauto.
     eapply valid_execution_fragment_join'; eauto.
   - destruct qa.
@@ -195,7 +196,8 @@ Proof.
     specialize (Hrel_trace_init st st'' s2' qb pid Hinvst Hrel H).
     inversion Hrel_trace_init as [s2'' [Hs2''rel Hs2''valid]].
     specialize (IHHtrace1 Hinvst'' s2'' Hs2''valid).
-    inversion IHHtrace1 as [s2 Hs2].
+    inversion IHHtrace1 as [s2 [in_acts' Hs2]].
+    eexists; subst; intuition; eauto.
     eexists; subst; intuition; eauto.
     eapply Step_Initial_Call; eauto.
   - destruct Hinv as [Hinvstart [Hinvstep [Hinvinit [Hinvat [Hinvafter Hinvfinal]]]]].
@@ -205,7 +207,8 @@ Proof.
     specialize (Hrel_trace_final st st'' s2' rb pid Hinvst Hrel H).
     inversion Hrel_trace_final as [s2'' [Hs2''rel Hs2''valid]].
     specialize (IHHtrace1 Hinvst'' s2'' Hs2''valid).
-    inversion IHHtrace1 as [s2 Hs2].
+    inversion IHHtrace1 as [s2 [in_acts' Hs2]].
+    eexists; subst; intuition; eauto.
     eexists; subst; intuition; eauto.
     eapply Step_Final_Return; eauto.
 Qed.
@@ -221,7 +224,7 @@ Proof.
   unfold refines.
   intros acts Htrace1.
   unfold in_traces in *.
-  destruct Htrace1 as [s1init [s1final [Hstart1 Hfrag1]]].
+  destruct Htrace1 as [s1init [s1final [in_acts [Hstart1 Hfrag1]]]].
   inversion Hforward as [[Hrel_inv_start _] [Hrel_start Hrel_trace]].
   specialize (Hrel_start s1init Hstart1).
   inversion Hrel_start as [s2init [Hs2start Hs2rel]].
@@ -232,11 +235,12 @@ Proof.
                 s1init
                 s1final
                 acts
+                in_acts
                 s2init
                 Hforward
                 Hfrag1
                 Hinvs1init
-                Hs2rel) as [s2final Hs2final].
+                Hs2rel) as [s2final [in_acts' Hs2final]].
   repeat eexists; intuition; eauto.
 Qed.
 
