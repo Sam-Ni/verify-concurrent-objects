@@ -271,7 +271,7 @@ Proof.
         simpl. eapply binds_concat_left.
         unfold binds. simpl. rewrite Nat.eqb_refl. reflexivity.
         apply ok_middle_inv in H5; intuition.
-        inversion H6; subst. clear H6.
+        inversion H6; subst. clear H6. simpl in *.
         exists (mkCntState (requests s2) (responses s2) (S (value s2))).
 
         simpl.
