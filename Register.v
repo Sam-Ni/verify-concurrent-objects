@@ -187,7 +187,7 @@ Proof.
   econstructor; eauto.
 Qed.
 
-Lemma reg_final_state_preserves_ok: forall st st' pid rb,
+Lemma reg_final_preserves_ok: forall st st' pid rb,
   final_state Register st pid rb st' ->
   RegStateWF st ->
   RegStateWF st'.
@@ -238,7 +238,7 @@ Proof.
   - destruct H as [a Ha].
     eapply reg_initial_preserves_ok; eauto.
   - destruct H1 as [a Ha].
-    eapply reg_final_state_preserves_ok; eauto.
+    eapply reg_final_preserves_ok; eauto.
   - destruct H as [a Ha].
     eapply reg_at_external_preserves_ok; eauto.
   - destruct H1 as [a Ha].
@@ -258,7 +258,7 @@ Proof.
   - eapply reg_at_external_preserves_ok in H; eauto.
   - eapply reg_after_external_preserves_ok in H; eauto.
   - eapply reg_initial_preserves_ok in H; eauto.
-  - eapply reg_final_state_preserves_ok in H; eauto.
+  - eapply reg_final_preserves_ok in H; eauto.
 Qed.
   
 Lemma reachable_inv: forall st,
@@ -271,6 +271,20 @@ Proof.
   inversion Hnew; subst.
   unfold new_register.
   unfold RegStateWF. simpl. intuition; econstructor.
+Qed.
+
+Lemma reg_ok_inv: invariant_ind Register RegStateWF.
+Proof.
+  unfold invariant_ind. intuition.
+  - inversion H; subst.
+    unfold RegStateWF.
+    unfold new_register.
+    simpl. constructor; constructor.
+  - eapply reg_step_preserves_ok; eauto.
+  - eapply reg_initial_preserves_ok; eauto.
+  - eapply reg_at_external_preserves_ok; eauto.
+  - eapply reg_after_external_preserves_ok; eauto.
+  - eapply reg_final_preserves_ok; eauto.
 Qed.
 
 Lemma binds_same: forall (req: env Register_query) pid qb qb',
@@ -409,7 +423,7 @@ Proof.
     -- apply IHvalid_execution_fragment; auto.
       eapply final_preserves_binds; eauto.
       apply Nat.eqb_neq; auto.
-      eapply reg_final_state_preserves_ok; eauto.
+      eapply reg_final_preserves_ok; eauto.
 Qed.
 
 End Properties.

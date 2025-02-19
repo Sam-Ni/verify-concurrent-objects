@@ -317,7 +317,8 @@ Section LINK.
         valid_execution_fragment L1 lst2st1 lst.(L1State) st1acts st1in_acts /\
         gather_pid_external_events st1acts pid = [] /\
         gather_pid_internal_events st2in_acts pid = [] /\
-        gather_pid_external_events st2acts pid = []) ->
+        gather_pid_external_events st2acts pid = [] /\
+        reachable L2 lst2st2) ->
       lst' = mkLinkedState st1' st2 cs ->
       linked_step lst pid (intL1 act) lst'
   | linked_step_L1_pop : forall st1 st1' rb st2 st2' lst lst' cs pid qb cs1 cs2 cs',
