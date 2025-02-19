@@ -4,6 +4,7 @@ Require Import
   LTS
   Counter
   Register
+  LibVar
 .
 Require 
   LibEnv.
@@ -172,3 +173,70 @@ Section DCounter.
   .
   
 End DCounter.
+
+Section Properties.
+
+Import LibEnv.
+  
+Definition RegCntImplStateWF st :=
+  ok st.(pc).
+
+Lemma regcntimpl_initial_preserves_ok: forall st st' pid qb,
+  initial_state register_counter_impl st pid qb st' ->
+  RegCntImplStateWF st ->
+  RegCntImplStateWF st'.
+Proof.
+  inversion 1; intros; subst;
+  unfold RegCntImplStateWF; simpl; intuition;
+  econstructor; eauto.
+Qed.
+
+Lemma regcntimpl_final_preserves_ok: forall st st' pid qb,
+  final_state register_counter_impl st pid qb st' ->
+  RegCntImplStateWF st ->
+  RegCntImplStateWF st'.
+Proof.
+  inversion 1; intros; subst;
+  unfold RegCntImplStateWF in *; intuition;
+    apply ok_remove in H7; intuition.
+Qed.
+
+Section StrutureProperties.
+
+Variable A : Type.
+Implicit Types E F : env A.
+
+Lemma ok_middle: forall F E x v v',
+  ok (E ++ [(x, v)] ++ F) ->
+  ok (E ++ [(x, v')] ++ F).
+Proof.
+  induction E using env_ind; simpl; intros.
+  - inversion H; subst.
+    econstructor; eauto.
+  - inversion H; subst.
+    econstructor; eauto.
+    eapply notin_concat in H4 .
+    
+Qed.
+
+
+End StrutureProperties.
+
+
+Lemma regcntimpl_at_external_preserves_ok: forall st st' pid qb,
+  at_external register_counter_impl st pid qb st' ->
+  RegCntImplStateWF st ->
+  RegCntImplStateWF st'.
+Proof.
+  inversion 1; intros; subst.
+  - unfold RegCntImplStateWF in *; intuition.
+    simpl in H7.
+    apply ok_concat_inv in H7.
+    simpl. apply ok_con
+
+  simpl.
+    apply ok_remove in H7; intuition.
+Qed.
+
+
+End Properties.

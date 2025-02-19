@@ -180,6 +180,15 @@ Fixpoint gather_pid_external_events events pid : list event :=
                       else remaining_events
   end.
 
+Fixpoint gather_pid_internal_events in_acts pid : list int_event :=
+  match in_acts with
+  | nil => nil
+  | (pid', in_act) :: in_acts' =>
+      let remaining_events := gather_pid_internal_events in_acts' pid in
+      if pid =? pid' then (pid', in_act) :: remaining_events
+                      else remaining_events
+  end.
+
 (* 
   A list of events 'acts' is a trace of the object
   if 'acts' is an execution from new_state to some state.
@@ -225,6 +234,8 @@ Definition invariant_ind (P : state L -> Prop) :=
     P st').
 
 End Trace.
+
+Arguments gather_pid_internal_events {liA liB L}.
 
 (*
   Compose two lts with the common interface liB.
@@ -304,7 +315,9 @@ Section LINK.
         lst2 = mkLinkedState lst2st1 lst2st2 cs' /\
         valid_execution_fragment L2 lst2st2 lst.(L2State) st2acts st2in_acts /\
         valid_execution_fragment L1 lst2st1 lst.(L1State) st1acts st1in_acts /\
-        gather_pid_external_events st1acts pid = []) ->
+        gather_pid_external_events st1acts pid = [] /\
+        gather_pid_internal_events st2in_acts pid = [] /\
+        gather_pid_external_events st2acts pid = []) ->
       lst' = mkLinkedState st1' st2 cs ->
       linked_step lst pid (intL1 act) lst'
   | linked_step_L1_pop : forall st1 st1' rb st2 st2' lst lst' cs pid qb cs1 cs2 cs',
