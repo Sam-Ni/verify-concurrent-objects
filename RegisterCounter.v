@@ -358,6 +358,138 @@ Fixpoint gather_responses' (pc : LibEnv.env DCounter_pc) (regst : state Register
         end)
   end.
 
+Lemma gather_requests_preserves_pid_notin': forall pc pid regst,
+  pid # pc ->
+  pid # gather_requests' pc regst.
+Proof.
+  induction pc; intros.
+  - apply notin_empty.
+  - destruct a. simpl.
+    simpl. simpl in H.
+    apply notin_union in H. intuition.
+    eapply IHpc in H1.
+    destruct d; simpl; try apply notin_union; eauto.
+    -- destruct (get v (Register.requests regst)).
+      + simpl. apply notin_union; eauto.
+      + destruct (get v (Register.responses regst)).
+        ++ destruct r.
+          +++ destruct success; simpl; intuition.
+            apply notin_union; auto.
+          +++ simpl. apply notin_union; auto.
+        ++ simpl. apply notin_union; auto.
+    -- destruct ret; eauto. simpl. apply notin_union; eauto.
+Qed.
+
+Lemma gather_responses_preserves_pid_notin': forall pc pid regst,
+  pid # pc ->
+  pid # gather_responses' pc regst.
+Proof.
+  induction pc; intros.
+  - apply notin_empty.
+  - destruct a. simpl.
+    simpl. simpl in H.
+    apply notin_union in H. intuition.
+    eapply IHpc in H1.
+    destruct d; simpl; try apply notin_union; eauto.
+    -- destruct (get v (Register.requests regst)).
+      + assumption.
+      + destruct (get v (Register.responses regst)).
+        ++ destruct r.
+          +++ destruct success; simpl; intuition.
+            apply notin_union; auto.
+          +++ assumption.
+        ++ assumption.
+    -- destruct ret; eauto. simpl. apply notin_union; eauto.
+Qed.
+
+Lemma gather_requests_dist': forall pc pc' regst,
+  gather_requests' (pc ++ pc') regst =
+  gather_requests' pc regst ++ gather_requests' pc' regst.
+Proof.
+  induction pc; simpl; intros.
+  - reflexivity.
+  - destruct a.
+    destruct d; simpl; rewrite IHpc; try reflexivity.
+    -- destruct (get v (Register.requests regst)); simpl.
+      + reflexivity.
+      + destruct (get v (Register.responses regst)); simpl.
+        ++ destruct r; simpl.
+          +++ destruct success; simpl; intuition.
+          +++ reflexivity.
+        ++ reflexivity.
+    -- destruct ret; reflexivity.
+Qed.
+
+Lemma gather_responses_dist': forall pc pc' regst,
+  gather_responses' (pc ++ pc') regst =
+  gather_responses' pc regst ++ gather_responses' pc' regst.
+Proof.
+  induction pc; simpl; intros.
+  - reflexivity.
+  - destruct a.
+    destruct d; simpl; rewrite IHpc; try reflexivity.
+    -- destruct (get v (Register.requests regst)); simpl.
+      + reflexivity.
+      + destruct (get v (Register.responses regst)); simpl.
+        ++ destruct r; simpl.
+          +++ destruct success; simpl; intuition.
+          +++ reflexivity.
+        ++ reflexivity.
+    -- destruct ret; reflexivity.
+Qed.
+
+Lemma gather_requests_notin: forall pc pid inv res v pid_inv,
+  pid # pc ->
+  gather_requests' pc (mkRegState ((pid, pid_inv) :: inv) res v) =
+  gather_requests' pc (mkRegState inv res v).
+Proof.
+  induction pc using env_ind; simpl; intros.
+  - reflexivity.
+  - apply notin_union in H. intuition.
+    destruct v; simpl;
+    try (f_equal; eapply IHpc; eauto);
+    try (eapply IHpc; eauto).
+    -- apply notin_neq in H0.
+      assert (Hneq: x =? pid = false).
+      apply Nat.eqb_neq; intuition .
+      rewrite Hneq.
+      destruct (get x inv); simpl.
+      --- f_equal; eapply IHpc; eauto.
+      --- destruct (get x res); simpl; try (f_equal; eapply IHpc; eauto).
+        destruct r; try (f_equal; eapply IHpc; eauto).
+        destruct success.
+          +++ eapply IHpc; eauto.
+          +++ f_equal; eapply IHpc; eauto.
+    -- destruct ret; simpl; try (f_equal; eapply IHpc; eauto).
+      eapply IHpc; eauto.
+Qed.
+
+Lemma gather_responses_notin: forall pc pid inv res v pid_inv,
+  pid # pc ->
+  gather_responses' pc (mkRegState ((pid, pid_inv) :: inv) res v) =
+  gather_responses' pc (mkRegState inv res v).
+Proof.
+  induction pc using env_ind; simpl; intros.
+  - reflexivity.
+  - apply notin_union in H. intuition.
+    destruct v; simpl;
+    try (f_equal; eapply IHpc; eauto);
+    try (eapply IHpc; eauto).
+    -- apply notin_neq in H0.
+      assert (Hneq: x =? pid = false).
+      apply Nat.eqb_neq; intuition .
+      rewrite Hneq.
+      destruct (get x inv); simpl.
+      --- eapply IHpc; eauto.
+      --- destruct (get x res); simpl; try (f_equal; eapply IHpc; eauto).
+        destruct r; try (f_equal; eapply IHpc; eauto).
+        destruct success; simpl; try (f_equal; eapply IHpc; eauto); try (eapply IHpc; eauto).
+          +++ eapply IHpc; eauto.
+          +++ eapply IHpc; eauto.
+    -- destruct ret; simpl; try (f_equal; eapply IHpc; eauto).
+      eapply IHpc; eauto.
+Qed.
+
 (* 
   Potential problem: the mapping relation missed some details
 *)
@@ -414,8 +546,8 @@ Proof.
         rewrite H4. reflexivity.
       }
       econstructor; eauto.
-      rewrite <-H4. apply gather_requests_preserves_pid_notin; auto.
-      rewrite <-H0. apply gather_responses_preserves_pid_notin; auto.
+      rewrite <-H4. apply gather_requests_preserves_pid_notin'; auto.
+      rewrite <-H0. apply gather_responses_preserves_pid_notin'; auto.
       destruct s2.
       reflexivity.
     -- simpl. unfold f in H0. simpl in H0.
@@ -427,38 +559,38 @@ Proof.
         rewrite H4. reflexivity.
       }
       econstructor; eauto.
-      rewrite <-H4. apply gather_requests_preserves_pid_notin; auto.
-      rewrite <-H0. apply gather_responses_preserves_pid_notin; auto.
+      rewrite <-H4. apply gather_requests_preserves_pid_notin'; auto.
+      rewrite <-H0. apply gather_responses_preserves_pid_notin'; auto.
       destruct s2.
       reflexivity.
   - intros. inversion H1; subst.
     inversion H; subst.
     -- simpl. unfold f in H0. simpl in H0.
       intuition.
-      rewrite gather_requests_dist in H4. simpl in H4.
-      rewrite gather_responses_dist in H0. simpl in H0.
-      exists (mkCntState (requests s2) (gather_responses (pc' ++ pc'')) (value s2)).
+      rewrite gather_requests_dist' in H4. simpl in H4.
+      rewrite gather_responses_dist' in H0. simpl in H0.
+      exists (mkCntState (requests s2) (gather_responses' (pc' ++ pc'') st1) (value s2)).
       intuition.
       2: {
         unfold f. simpl. intuition.
-        rewrite <-H4. apply gather_requests_dist.
+        rewrite <-H4. apply gather_requests_dist'.
       }
       eapply counter_final_state_inc with (inv:=requests s2) (res:=responses s2); eauto.
       rewrite <-H0. simpl. eauto. destruct s2. eauto.
-      rewrite gather_responses_dist. rewrite H6. reflexivity.
+      rewrite gather_responses_dist'. rewrite H6. reflexivity.
     -- simpl. unfold f in H0. simpl in H0.
       intuition.
-      rewrite gather_requests_dist in H4. simpl in H4.
-      rewrite gather_responses_dist in H0. simpl in H0.
-      exists (mkCntState (requests s2) (gather_responses (pc' ++ pc'')) (value s2)).
+      rewrite gather_requests_dist' in H4. simpl in H4.
+      rewrite gather_responses_dist' in H0. simpl in H0.
+      exists (mkCntState (requests s2) (gather_responses' (pc' ++ pc'') st1) (value s2)).
       intuition.
       2: {
         unfold f. simpl. intuition.
-        rewrite <-H4. apply gather_requests_dist.
+        rewrite <-H4. apply gather_requests_dist'.
       }
       eapply counter_final_state_read with (inv:=requests s2) (res:=responses s2); eauto.
       rewrite <-H0. simpl. eauto. destruct s2. eauto.
-      rewrite gather_responses_dist. rewrite H6. reflexivity.
+      rewrite gather_responses_dist'. rewrite H6. reflexivity.
   - intros. inversion H1; subst.
     -- clear H1. simpl in H2.
         simpl in H4. exists s2, nil.
@@ -467,23 +599,57 @@ Proof.
         unfold f. simpl.
         unfold f in H0. simpl in H0.
         inversion H4; subst; simpl in H0; simpl;
-        rewrite gather_requests_dist in H0;
-        rewrite gather_responses_dist in H0;
-        rewrite gather_requests_dist;
-        rewrite gather_responses_dist;
+        rewrite gather_requests_dist' in H0;
+        rewrite gather_responses_dist' in H0;
+        rewrite gather_requests_dist';
+        rewrite gather_responses_dist';
         simpl in H0; simpl; intuition.
     -- exists s2, nil. intuition.
       econstructor; eauto.
       unfold f. simpl.
       unfold f in H0. simpl in H0.
-      inversion H; subst; simpl in *;
-      rewrite gather_requests_dist in H0;
-        rewrite gather_responses_dist in H0;
-        simpl in H0;
-        rewrite gather_requests_dist;
-        rewrite gather_responses_dist;
-        simpl; inversion H5; subst; simpl in *;
-        intuition.
+      intuition.
+      --- rewrite <-H4.
+        inversion H; subst; inversion H5; subst; simpl in *.
+        + repeat rewrite gather_requests_dist'.
+          unfold RegCntImplStateWF in H3.
+          simpl in H3. apply ok_middle_inv in H3. intuition.
+          rewrite gather_requests_notin; auto.
+          simpl.
+          rewrite gather_requests_notin; auto.
+        + repeat rewrite gather_requests_dist'.
+          unfold RegCntImplStateWF in H3.
+          simpl in H3. apply ok_middle_inv in H3. intuition.
+          rewrite gather_requests_notin; auto.
+          simpl. rewrite Nat.eqb_refl.
+          rewrite gather_requests_notin; auto.
+        + repeat rewrite gather_requests_dist'.
+          unfold RegCntImplStateWF in H3.
+          simpl in H3. apply ok_middle_inv in H3. intuition.
+          rewrite gather_requests_notin; auto.
+          simpl.
+          rewrite gather_requests_notin; auto.
+      --- rewrite <-H0.
+        inversion H; subst; inversion H5; subst; simpl in *.
+        + repeat rewrite gather_responses_dist'.
+          unfold RegCntImplStateWF in H3.
+          simpl in H3. apply ok_middle_inv in H3. intuition.
+          rewrite gather_responses_notin; auto.
+          simpl.
+          rewrite gather_responses_notin; auto.
+        + repeat rewrite gather_responses_dist'.
+          unfold RegCntImplStateWF in H3.
+          simpl in H3. apply ok_middle_inv in H3. intuition.
+          rewrite gather_responses_notin; auto.
+          simpl. rewrite Nat.eqb_refl.
+          rewrite gather_responses_notin; auto.
+        + repeat rewrite gather_responses_dist'.
+          unfold RegCntImplStateWF in H3.
+          simpl in H3. apply ok_middle_inv in H3. intuition.
+          rewrite gather_responses_notin; auto.
+          simpl.
+          rewrite gather_responses_notin; auto.
+      --- inversion H5; subst; simpl; intuition.
     -- destruct act.
       --- simpl in *.
         destruct qb; intuition.
@@ -525,7 +691,7 @@ Proof.
         apply binds_reconstruct in Hst2.
         destruct Hst2 as [pc2' [pc2'' Hpc]].
         rewrite Hpc in H5. simpl in H5.
-        rewrite gather_requests_dist in H5.
+        rewrite gather_requests_dist' in H5.
         simpl in H5.
 
         destruct (value s2 =? r pid)eqn:Hbool.
