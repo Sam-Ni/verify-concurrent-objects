@@ -72,23 +72,26 @@ Section Counter.
   .
 
   Inductive counter_final_state : Counter_state -> Pid -> reply li_counter -> Counter_state -> Prop :=
-  | counter_final_state_inc : forall pid inv res res' res'' v st st',
-    res = res' ++ [(pid, CntIncOk)] ++ res'' ->
+  | counter_final_state_inc : forall pid inv res res1 res2 v st st' res',
+    sameset res (res1 ++ [(pid, CntIncOk)] ++ res2) ->
     st = mkCntState inv res v ->
-    st' = mkCntState inv (res' ++ res'') v ->
+    res' = (res1 ++ res2) ->
+    st' = mkCntState inv res' v ->
     counter_final_state st pid CntIncOk st'
-  | counter_final_state_read : forall pid inv res res' res'' v st st' ret,
-    res = res' ++ [(pid, CntReadOk ret)] ++ res'' ->
+  | counter_final_state_read : forall pid inv res res1 res2 v st st' ret res',
+    sameset res (res1 ++ [(pid, CntReadOk ret)] ++ res2) ->
     st = mkCntState inv res v ->
-    st' = mkCntState inv (res' ++ res'') v ->
+    res' = (res1 ++ res2) ->
+    st' = mkCntState inv res' v ->
     counter_final_state st pid (CntReadOk ret) st'
   .
 
   Inductive counter_step : Counter_state -> Pid -> Internal -> Counter_state -> Prop :=
-  | counter_step_inc : forall pid st st' inv inv' inv'' res v,
-    inv = inv' ++ [(pid, CntInc)] ++ inv'' ->
+  | counter_step_inc : forall pid st st' inv inv1 inv2 res v inv',
+    sameset inv (inv1 ++ [(pid, CntInc)] ++ inv2) ->
     st = mkCntState inv res v ->
-    st' = mkCntState (inv' ++ inv'') ((pid, CntIncOk)::res) (S v) ->
+    inv' = (inv1 ++ inv2) ->
+    st' = mkCntState inv' ((pid, CntIncOk)::res) (S v) ->
     counter_step st pid int_cnt_inc st'
   | counter_step_read : forall pid st st' inv inv' inv'' res v,
     inv = inv' ++ [(pid, CntRead)] ++ inv'' ->

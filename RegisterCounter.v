@@ -721,6 +721,52 @@ Proof.
 
 End SubsetDef. *)
 
+Section List.
+
+Variable A : Type.
+
+Lemma push_inv: forall x (l : env A),
+  x :: l = [x] ++ l.
+Proof.
+  intros; simpl; auto.
+Qed.
+
+Lemma sameset_ExF_xEF: forall x (E F: env A),
+  ok (E ++ (x :: F)) ->
+  sameset (E ++ (x :: F))
+          (x :: (E ++ F)).
+Proof.
+  intros.
+  assert (sameset (E ++ (x :: F)) ((x :: F) ++ E)).
+  eapply sameset_concat_comm with (E:=(x :: F)). auto.
+  simpl in H0.
+  assert (sameset (x :: F ++ E) (x :: E ++ F)).
+  rewrite push_inv.
+  rewrite push_inv with (l:=E ++ F).
+  eapply sameset_concat with (F:=[x]).
+  eapply sameset_concat_comm.
+  eapply ok_remove with (F:=[x]) in H.
+  eapply ok_concat_comm. auto.
+  simpl. apply sameset_ok_inv in H0; intuition.
+  eapply trans_sameset; eauto.
+Qed.
+
+Lemma ok_ExF_xEF: forall (F E: env A) x,
+  ok (x :: (E ++ F)) ->
+  ok (E ++ (x :: F)).
+Proof.
+  intros. eapply ok_concat_comm. simpl.
+  destruct x.
+  econstructor; eauto.
+  inversion H; subst.
+  eapply ok_concat_comm; eauto.
+  inversion H; subst.
+  apply notin_concat in H4.
+  apply notin_concat. intuition.
+Qed.
+
+End List.
+
 (* 
   The proof stuck in the case of fsim_simulation (to be more specific, when the action is int_cas in Register).
   Problem: the rule linked_step_L1_internal is too general 
@@ -825,14 +871,9 @@ Proof.
         apply ok_remove in Hlok. assumption.
       }
       eapply counter_final_state_inc with (inv:=requests s2) (res:=responses s2); eauto.
-
-      3: {
-        rewrite gather_responses_dist'. eauto.
-      }
-      reflexivity.
-      destruct s2. reflexivity.
-      rewrite <-H0. simpl. eauto. destruct s2. eauto.
-      rewrite gather_responses_dist'. rewrite H6. reflexivity.
+      eapply sym_sameset. simpl. eauto.
+      destruct s2; eauto.
+      rewrite gather_responses_dist'; eauto.
     -- simpl. unfold f in H0. simpl in H0.
       intuition.
       rewrite gather_requests_dist' in H4. simpl in H4.
@@ -841,11 +882,18 @@ Proof.
       intuition.
       2: {
         unfold f. simpl. intuition.
-        rewrite <-H4. apply gather_requests_dist'.
+        rewrite gather_requests_dist'. assumption.
+        eapply sameset_refl.
+        eapply gather_responses_preserves_ok; eauto.
+        unfold RegCntImplStateWF in H3. simpl in H3.
+        assert (Hlok : ok (pc' ++ [(pid, DRead3 ret)] ++ pc'')).
+        simpl; assumption.
+        apply ok_remove in Hlok. assumption.
       }
       eapply counter_final_state_read with (inv:=requests s2) (res:=responses s2); eauto.
-      rewrite <-H0. simpl. eauto. destruct s2. eauto.
-      rewrite gather_responses_dist'. rewrite H6. reflexivity.
+      eapply sym_sameset. simpl. eauto.
+      destruct s2; eauto.
+      rewrite gather_responses_dist'; eauto.
   - intros. inversion H1; subst.
     -- clear H1. simpl in H2.
         simpl in H4. exists s2, nil.
@@ -864,46 +912,92 @@ Proof.
       unfold f. simpl.
       unfold f in H0. simpl in H0.
       intuition.
-      --- rewrite <-H4.
+      --- eapply trans_sameset; eauto.
         inversion H; subst; inversion H5; subst; simpl in *.
         + repeat rewrite gather_requests_dist'.
           unfold RegCntImplStateWF in H3.
-          simpl in H3. apply ok_middle_inv in H3. intuition.
+          simpl in H3.
+          generalize ok_middle_inv; intro.
+          specialize (H11 _ _ _ _ _ H3).
+          intuition.
           rewrite gather_requests_notin_req; auto.
           simpl.
           rewrite gather_requests_notin_req; auto.
+          apply sameset_refl.
+          eapply gather_requests_preserves_ok in H3.
+          rewrite gather_requests_dist' in H3.
+          simpl in H3. eauto.
         + repeat rewrite gather_requests_dist'.
+
           unfold RegCntImplStateWF in H3.
-          simpl in H3. apply ok_middle_inv in H3. intuition.
+          simpl in H3.
+          generalize ok_middle_inv; intro.
+          specialize (H6 _ _ _ _ _ H3).
+          intuition.
           rewrite gather_requests_notin_req; auto.
           simpl. rewrite Nat.eqb_refl.
           rewrite gather_requests_notin_req; auto.
+          apply sameset_refl.
+          eapply gather_requests_preserves_ok in H3.
+          rewrite gather_requests_dist' in H3.
+          simpl in H3. eauto.
         + repeat rewrite gather_requests_dist'.
           unfold RegCntImplStateWF in H3.
-          simpl in H3. apply ok_middle_inv in H3. intuition.
+          simpl in H3.
+          
+          generalize ok_middle_inv; intro.
+          specialize (H11 _ _ _ _ _ H3).
+          intuition.
           rewrite gather_requests_notin_req; auto.
           simpl.
           rewrite gather_requests_notin_req; auto.
-      --- rewrite <-H0.
+          apply sameset_refl.
+          eapply gather_requests_preserves_ok in H3.
+          rewrite gather_requests_dist' in H3.
+          simpl in H3. eauto.
+      --- eapply trans_sameset; eauto.
         inversion H; subst; inversion H5; subst; simpl in *.
         + repeat rewrite gather_responses_dist'.
           unfold RegCntImplStateWF in H3.
-          simpl in H3. apply ok_middle_inv in H3. intuition.
+          simpl in H3.
+          generalize ok_middle_inv; intro.
+          specialize (H11 _ _ _ _ _ H3).
+          intuition.
           rewrite gather_responses_notin_req; auto.
           simpl.
           rewrite gather_responses_notin_req; auto.
+          apply sameset_refl.
+          eapply gather_responses_preserves_ok in H3.
+          rewrite gather_responses_dist' in H3.
+          simpl in H3. eauto.
         + repeat rewrite gather_responses_dist'.
+
           unfold RegCntImplStateWF in H3.
-          simpl in H3. apply ok_middle_inv in H3. intuition.
+          simpl in H3.
+          generalize ok_middle_inv; intro.
+          specialize (H6 _ _ _ _ _ H3).
+          intuition.
           rewrite gather_responses_notin_req; auto.
           simpl. rewrite Nat.eqb_refl.
           rewrite gather_responses_notin_req; auto.
+          apply sameset_refl.
+          eapply gather_responses_preserves_ok in H3.
+          rewrite gather_responses_dist' in H3.
+          simpl in H3. eauto.
         + repeat rewrite gather_responses_dist'.
           unfold RegCntImplStateWF in H3.
-          simpl in H3. apply ok_middle_inv in H3. intuition.
+          simpl in H3.
+          
+          generalize ok_middle_inv; intro.
+          specialize (H11 _ _ _ _ _ H3).
+          intuition.
           rewrite gather_responses_notin_req; auto.
           simpl.
           rewrite gather_responses_notin_req; auto.
+          apply sameset_refl.
+          eapply gather_responses_preserves_ok in H3.
+          rewrite gather_responses_dist' in H3.
+          simpl in H3. eauto.
       --- inversion H5; subst; simpl; intuition.
     -- destruct act.
       --- simpl in *.
@@ -967,11 +1061,16 @@ Proof.
             }
             destruct s2. simpl in *.
             econstructor; eauto.
-            f_equal; auto.
+            eapply sym_sameset; eauto.
           ++ unfold f. simpl.
             intuition.
             +++ rewrite Hpc.
               rewrite gather_requests_dist'.
+              apply regcntimpl_reachable_inv in H18.
+              assert (RegCntImplStateWF st2).
+              eapply regcntimpl_valid_execution_preserves_ok; eauto.
+              unfold RegCntImplStateWF in H7.
+              rewrite Hpc in H7.
               rewrite gather_requests_notin_res.
               simpl.
               rewrite get_notin_env.
@@ -983,55 +1082,77 @@ Proof.
               rewrite gather_requests_notin_res.
               rewrite gather_requests_any_v_reg with (v':=value s2).
               rewrite gather_requests_any_v_reg with (v:=S (r pid)) (v':=value s2).
-              reflexivity.
+              eapply sameset_refl; eauto.
+              eapply ok_remove in H7.
+              eapply gather_requests_preserves_ok in H7.
+              unfold ";" in H7.
+              rewrite gather_requests_dist' in H7.
+              eauto.
+              eapply ok_middle_inv in H7. intuition.
+              unfold RegStateWF in H2. simpl in H2.
+              intuition.
+              apply ok_middle_inv in H17. intuition.
+              unfold RegStateWF in H2. simpl in H2.
+              intuition.
+              apply ok_middle_inv in H17. intuition.
+              eapply ok_middle_inv in H7. intuition.
+            +++ rewrite Hpc.
+              rewrite gather_responses_dist'.
               apply regcntimpl_reachable_inv in H18.
               assert (RegCntImplStateWF st2).
               eapply regcntimpl_valid_execution_preserves_ok; eauto.
               unfold RegCntImplStateWF in H7.
               rewrite Hpc in H7.
-              apply ok_middle_inv in H7.
-              intuition.
-              apply ok_middle_inv in H6.
-              intuition.
-              apply ok_middle_inv in H6.
-              intuition.
-              assert (RegCntImplStateWF st2).
-              apply regcntimpl_reachable_inv in H18.
-              eapply regcntimpl_valid_execution_preserves_ok; eauto.
-              unfold RegCntImplStateWF in H7.
-              rewrite Hpc in H7.
-              apply ok_middle_inv in H7.
-              intuition.
-            +++ rewrite <-H0.
-              rewrite Hpc.
+              generalize ok_middle_inv; intro Hokremove.
+              specialize (Hokremove _ _ _ _ _ H7).
+              unfold RegStateWF in H2.
+              simpl in H2. intuition.
+              apply ok_middle_inv with (x:=pid) in H17.
+
+              rewrite gather_responses_notin_res; intuition.
               simpl.
-              rewrite gather_responses_dist'.
-              rewrite gather_responses_dist'.
-              simpl.
-              rewrite get_notin_env.
-              rewrite get_notin_env.
-              simpl. rewrite Nat.eqb_refl.
+              rewrite get_notin_env; intuition.
               assert (Hl : inv'' = inv'' ++ []).
               rewrite app_nil_r. reflexivity.
               rewrite Hl.
-              rewrite get_notin_env. simpl.
+              rewrite get_notin_env; intuition. simpl.
+              rewrite Nat.eqb_refl; intuition.
+              rewrite gather_responses_notin_res; intuition.
+              rewrite gather_responses_any_v_reg with (v':=value s2); intuition.
+              rewrite gather_responses_any_v_reg with (v:=S (r pid)) (v':=value s2); intuition.
+              generalize sameset_ExF_xEF; intro.
+              eapply sameset_congruence with (F:= [(pid, CntIncOk)]) in H0; intuition.
+              simpl in H0.
+              eapply trans_sameset.
+              eapply sameset_ExF_xEF; eauto.
               rewrite <-Hl.
-              rewrite gather_responses_notin_res.
-              rewrite gather_responses_notin_res.
-              rewrite gather_responses_notin_env.
-              rewrite gather_responses_notin_env.
-              
-              
+              eapply ok_ExF_xEF.
 
+              rewrite <-gather_responses_dist'.
+              econstructor; eauto.
+              eapply gather_responses_preserves_ok; eauto.
+              eapply ok_remove in H7; eauto.
+              eapply gather_responses_preserves_pid_notin'; eauto.
+              eapply ok_middle_inv in H7; eauto.
+              apply notin_concat in H7. assumption.
+              eauto. simpl.
+              rewrite Hpc. simpl.
+              rewrite gather_responses_dist'.
+              simpl. rewrite get_notin_env; intuition. simpl.
+              rewrite Nat.eqb_refl.
+              rewrite gather_responses_notin_env; intuition.
+              rewrite gather_responses_notin_env; intuition.
+              rewrite app_nil_r.
+              eapply sameset_refl.
 
-
-
-        destruct (value s2 =? old) eqn:Heq.
-        + exists (mkCntState (requests s2) ((pid, CntIncOk)::responses s2) (S (value s2))).
-          simpl. intuition.
-          ++ eapply Step_Internal with (int:=int_cnt_inc); eauto.
-            2: { econstructor; eauto. }
-            simpl.
-Admitted.
+              rewrite <-gather_responses_dist'.
+              econstructor; eauto.
+              eapply gather_responses_preserves_ok; eauto.
+              eapply ok_remove in H7; eauto.
+              eapply gather_responses_preserves_pid_notin'; eauto.
+              eapply ok_middle_inv in H7; eauto.
+              apply notin_concat in H7. assumption.
+            +++ f_equal. apply Nat.eqb_eq in Hbool; intuition.
+        +
   
 End RegisterCounter.
