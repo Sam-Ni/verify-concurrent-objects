@@ -1153,6 +1153,82 @@ Proof.
               eapply ok_middle_inv in H7; eauto.
               apply notin_concat in H7. assumption.
             +++ f_equal. apply Nat.eqb_eq in Hbool; intuition.
-        +
+        + exists s2. exists nil. intuition.
+          econstructor; eauto.
+          unfold f. simpl. intuition.
+          ++ rewrite Hpc.
+            rewrite gather_requests_dist'. simpl.
+            unfold RegStateWF in H2.
+            simpl in H2. intuition.
+            apply ok_middle_inv with (x:=pid) in H7.
+          
+              assert (RegCntImplStateWF st2).
+              eapply regcntimpl_valid_execution_preserves_ok; eauto.
+              eapply regcntimpl_reachable_inv; eauto.
+              unfold RegCntImplStateWF in H2.
+              rewrite Hpc in H2.
+              generalize ok_middle_inv; intro Hokremove.
+              specialize (Hokremove _ _ _ _ _ H2).
+
+            rewrite get_notin_env; intuition.
+            assert (Hl : inv'' = inv'' ++ []) by (rewrite app_nil_r; reflexivity).
+            rewrite Hl.
+            rewrite get_notin_env; intuition. simpl.
+            rewrite Nat.eqb_refl.
+            rewrite <-Hl.
+            rewrite gather_requests_notin_res; intuition.
+            rewrite gather_requests_notin_res; intuition.
+          ++ rewrite Hpc.
+            rewrite gather_responses_dist'. simpl.
+            unfold RegStateWF in H2.
+            simpl in H2. intuition.
+            apply ok_middle_inv with (x:=pid) in H7.
+          
+              assert (RegCntImplStateWF st2).
+              eapply regcntimpl_valid_execution_preserves_ok; eauto.
+              eapply regcntimpl_reachable_inv; eauto.
+              unfold RegCntImplStateWF in H2.
+              rewrite Hpc in H2.
+              generalize ok_middle_inv; intro Hokremove.
+              specialize (Hokremove _ _ _ _ _ H2).
+
+            rewrite get_notin_env; intuition.
+            assert (Hl : inv'' = inv'' ++ []) by (rewrite app_nil_r; reflexivity).
+            rewrite Hl.
+            rewrite get_notin_env; intuition. simpl.
+            rewrite Nat.eqb_refl.
+            rewrite <-Hl.
+            rewrite gather_responses_notin_res; intuition.
+            rewrite gather_responses_notin_res; intuition.
+            erewrite gather_responses_any_v_reg.
+            erewrite gather_responses_any_v_reg with (pc:=pc2'').
+            rewrite Hpc in H0.
+            rewrite gather_responses_dist' in H0. simpl in H0.
+            rewrite get_notin_env in H0; intuition. simpl in H0.
+            rewrite Nat.eqb_refl in H0.
+            rewrite gather_responses_notin_env in H0; intuition.
+            rewrite gather_responses_notin_env in H0; intuition.
+            eassumption.
+        + assert (RegCntImplStateWF st2).
+          eapply regcntimpl_valid_execution_preserves_ok; eauto.
+          eapply regcntimpl_reachable_inv; eauto.
+          unfold RegCntImplStateWF in H7.
+          rewrite Hpc in H7.
+          generalize ok_middle_inv; intro Hokremove.
+          specialize (Hokremove _ _ _ _ _ H7).
+          intuition.
+        + unfold RegStateWF in H2.
+          simpl in H2. intuition.
+          apply ok_middle_inv with (x:=pid) in H7. intuition.
+        + assert (RegCntImplStateWF st2).
+          eapply regcntimpl_valid_execution_preserves_ok; eauto.
+          eapply regcntimpl_reachable_inv; eauto.
+          unfold RegCntImplStateWF in H7.
+          rewrite Hpc in H7.
+          generalize ok_middle_inv; intro Hokremove.
+          specialize (Hokremove _ _ _ _ _ H7).
+          intuition.
+      --- 
+
   
 End RegisterCounter.

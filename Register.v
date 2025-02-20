@@ -127,7 +127,7 @@ Section Register.
     ok inv -> ok res ->
     pid # res ->
     st = mkRegState inv res v ->
-    st' = mkRegState (inv' ++ inv'') ((pid, RegCASOk (st.(value) =? old))::res) (if value st =? old then new else old) ->
+    st' = mkRegState (inv' ++ inv'') ((pid, RegCASOk (st.(value) =? old))::res) (if value st =? old then new else value st) ->
     register_step st pid int_cas st'
   | register_step_read : forall pid st st' inv inv' inv'' res v,
     inv = inv' ++ [(pid, RegRead)] ++ inv'' ->
