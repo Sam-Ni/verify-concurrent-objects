@@ -1228,7 +1228,58 @@ Proof.
           generalize ok_middle_inv; intro Hokremove.
           specialize (Hokremove _ _ _ _ _ H7).
           intuition.
-      --- 
+      ---
+      
+      
+      
+      simpl in *.
+        destruct qb; intuition.
+        inversion H; subst.
+        simpl in *.
+        unfold f in H0. simpl in H0. intuition.
+        subst. simpl in *.
+
+        destruct H7 as [lst1 [lst2 [lst2st1 [lst2st2 [st1acts [st2acts [cs3 Htmp]]]]]]].
+        destruct Htmp as [st2in_acts [st1in_acts [Hbefore Hremain]]].
+        inversion Hbefore; subst.
+        inversion H10; subst.
+        (* RegRead in Inc, not a linearization point *)
+        * 
+
+        simpl in Hremain, Hbefore. intuition.
+        inversion H7; subst. clear H7.
+        inversion H12; subst. simpl in *.
+
+
+        (* exists s2. exists nil.
+          econstructor; eauto.
+          econstructor; eauto.
+          unfold f. simpl. *)
+
+        assert (Hst2: binds pid DInc2 st2.(pc)).
+        eapply no_action_preserves_DInc5; eauto.
+        apply regcntimpl_reachable_inv in H18.
+        unfold RegCntImplStateWF in H18.
+        simpl in H18.
+        eapply binds_concat_left; eauto.
+        unfold binds. simpl. rewrite Nat.eqb_refl.
+        reflexivity.
+        apply ok_middle_inv in H18.
+        intuition.
+        apply binds_reconstruct in Hst2.
+        destruct Hst2 as [pc2' [pc2'' Hpc]].
+        rewrite Hpc in H5. simpl in H5.
+        rewrite gather_requests_dist' in H5.
+        simpl in H5.
+        rewrite gather_requests_notin_env in H5.
+        rewrite get_notin_env in H5. simpl in H5.
+        rewrite Nat.eqb_refl in H5.
+        rewrite gather_requests_notin_env in H5.
+
+        destruct (value s2 =? r pid)eqn:Hbool.
+ 
+
+
 
   
 End RegisterCounter.
