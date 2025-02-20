@@ -176,6 +176,9 @@ Import LibEnv.
 
 Definition RegStateWF st :=
   ok st.(requests) /\ ok st.(responses).
+  (* forall pid v, binds pid v st.(requests) -> pid # st.(responses) /\
+  forall pid v, binds pid v st.(responses) -> pid # st.(requests) *)
+  (* . *)
 
 Lemma reg_initial_preserves_ok: forall st st' pid qb,
   initial_state Register st pid qb st' ->

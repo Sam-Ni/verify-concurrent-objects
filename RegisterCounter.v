@@ -18,115 +18,12 @@ Section RegisterCounter.
 
 Definition register_counter : lts li_null li_counter := linked_lts Register register_counter_impl.
 
-(* Fixpoint gather_requests (pc : LibEnv.env DCounter_pc) : LibEnv.env Counter_query :=
-  match pc with
-  | nil => nil
-  | ins :: pc' => 
-      let requests' := gather_requests pc' in
-      let (pid, inst) := ins in
-        (match inst with
-        | DInc1 => (pid, CntInc)::requests'
-        | DInc2 => (pid, CntInc)::requests'
-        | DInc3 _ => (pid, CntInc)::requests'
-        | DInc4 => (pid, CntInc)::requests'
-        | DInc5 => (pid, CntInc)::requests'
-        | DInc6 ret => match ret with
-                      | true => requests'
-                      | false => (pid, CntInc)::requests'
-                      end
-        | DInc7 => requests'
-        | DRead1 => (pid, CntRead)::requests'
-        | DRead2 => (pid, CntRead)::requests'
-        | DRead3 _ => requests'
-        end)
-  end.
+Definition no_inv_from_return (st' : register_counter.(state)) :=
+  forall (st : register_counter.(state)) pid ra,
+  linked_after_external st pid ra st' ->
+  pid # st'.(L1State).(Register.requests).
 
-Fixpoint gather_responses (pc : LibEnv.env DCounter_pc) : LibEnv.env Counter_reply :=
-  match pc with
-  | nil => nil
-  | ins :: pc' => 
-      let responses' := gather_responses pc' in
-      let (pid, inst) := ins in
-        (match inst with
-        | DInc1 => responses' 
-        | DInc2 => responses' 
-        | DInc3 _ => responses' 
-        | DInc4 => responses'
-        | DInc5 => responses'
-        | DInc6 ret => match ret with
-                      | true => (pid, CntIncOk)::responses'
-                      | false => responses'
-                      end
-        | DInc7 => (pid, CntIncOk)::responses'
-        | DRead1 => responses' 
-        | DRead2 => responses'
-        | DRead3 ret => (pid, CntReadOk ret)::responses'
-        end)
-  end. *)
-
-(* Lemma gather_requests_dist: forall pc pc',
-  gather_requests (pc ++ pc') =
-  gather_requests pc ++ gather_requests pc'.
-Proof.
-  induction pc; simpl; intros.
-  - reflexivity.
-  - destruct a.
-    destruct d; simpl; rewrite IHpc; try reflexivity.
-    destruct ret; reflexivity.
-Qed.
-
-Lemma gather_responses_dist: forall pc pc',
-  gather_responses (pc ++ pc') =
-  gather_responses pc ++ gather_responses pc'.
-Proof.
-  induction pc; simpl; intros.
-  - reflexivity.
-  - destruct a.
-    destruct d; simpl; rewrite IHpc; try reflexivity.
-    destruct ret; reflexivity.
-Qed.
-
-Lemma gather_requests_preserves_pid_notin: forall pc pid,
-  pid # pc ->
-  pid # gather_requests pc.
-Proof.
-  induction pc; intros.
-  - apply notin_empty.
-  - destruct a. simpl.
-    simpl. simpl in H.
-    apply notin_union in H. intuition.
-    apply IHpc in H1.
-    destruct d; simpl; try apply notin_union; eauto.
-    destruct ret; eauto. simpl. apply notin_union; eauto.
-Qed.
-
-Lemma gather_responses_preserves_pid_notin: forall pc pid,
-  pid # pc ->
-  pid # gather_responses pc.
-Proof.
-  induction pc; intros.
-  - apply notin_empty.
-  - destruct a. simpl.
-    simpl. simpl in H.
-    apply notin_union in H. intuition.
-    apply IHpc in H1.
-    destruct d; simpl; try apply notin_union; eauto.
-    destruct ret; eauto. simpl. apply notin_union; eauto.
-Qed. *)
-
-(* Lemma final_preserves_binds_DInc5: forall st st' pid pid' int,
-  binds pid DInc5 st.(pc) ->
-  final_state register_counter_impl st pid' int st' ->
-  pid <> pid' ->
-  binds pid DInc5 st'.(pc).
-Proof.
-  inversion 2; intros; subst;
-  apply binds_remove in H;
-  simpl in *; try assumption;
-  apply notin_neq; auto.
-Qed. *)
-
-Section StrutureProperties.
+Section StructureProperties.
 
 Variable A : Type.
 Implicit Types E F : env A.
@@ -177,7 +74,7 @@ Proof.
     apply IHinv; auto.
 Qed.
 
-End StrutureProperties.
+End StructureProperties.
 
 
 Lemma step_preserves_binds_DInc5: forall st st' pid pid' int,
@@ -227,7 +124,6 @@ Qed.
 Lemma initial_preserves_binds_DInc5: forall st st' pid pid' int,
   binds pid DInc5 st.(pc) ->
   initial_state register_counter_impl st pid' int st' ->
-  (* pid <> pid' -> *)
   binds pid DInc5 st'.(pc).
 Proof.
   intros.
@@ -241,7 +137,6 @@ Qed.
 Lemma final_preserves_binds_DInc5: forall st st' pid pid' int,
   binds pid DInc5 st.(pc) ->
   final_state register_counter_impl st pid' int st' ->
-  (* pid <> pid' -> *)
   binds pid DInc5 st'.(pc).
 Proof.
   intros.
@@ -298,6 +193,237 @@ Proof.
       eapply final_preserves_binds_DInc5; eauto.
 Qed.
 
+Lemma step_preserves_binds_DInc2: forall st st' pid pid' int,
+  binds pid DInc2 st.(pc) ->
+  step register_counter_impl st pid' int st' ->
+  pid <> pid' ->
+  binds pid DInc2 st'.(pc).
+Proof.
+  inversion 2; intros; subst;
+  eapply binds_neq_middle; eauto.
+Qed.
+
+Lemma at_external_preserves_binds_DInc2: forall st st' pid pid' int,
+  binds pid DInc2 st.(pc) ->
+  at_external register_counter_impl st pid' int st' ->
+  binds pid DInc2 st'.(pc).
+Proof.
+  intros.
+  destruct (Nat.eq_dec pid pid').
+  - subst. inversion H0; subst; simpl in *.
+    -- apply binds_concat_inv in H. intuition.
+      --- eapply binds_concat_right; eauto.
+      --- unfold binds in H2. simpl in H2.
+        rewrite Nat.eqb_refl in H2. inversion H2.
+    -- apply binds_concat_inv in H. intuition.
+      --- eapply binds_concat_right; eauto.
+      --- unfold binds in H2. simpl in H2.
+        rewrite Nat.eqb_refl in H2. inversion H2.
+    -- apply binds_concat_inv in H. intuition.
+      --- eapply binds_concat_right; eauto.
+      --- unfold binds in H2. simpl in H2.
+        rewrite Nat.eqb_refl in H2. inversion H2.
+  - inversion H0; intros; subst;
+    eapply binds_neq_middle; eauto.
+Qed.
+
+Lemma after_external_preserves_binds_DInc2: forall st st' pid pid' int,
+  binds pid DInc2 st.(pc) ->
+  after_external register_counter_impl st pid' int st' ->
+  pid <> pid' ->
+  binds pid DInc2 st'.(pc).
+Proof.
+  inversion 2; intros; subst;
+  eapply binds_neq_middle; eauto.
+Qed.
+
+Lemma initial_preserves_binds_DInc2: forall st st' pid pid' int,
+  binds pid DInc2 st.(pc) ->
+  initial_state register_counter_impl st pid' int st' ->
+  binds pid DInc2 st'.(pc).
+Proof.
+  intros.
+  destruct (Nat.eq_dec pid pid').
+  - subst. inversion H0; subst; simpl in *;
+    apply binds_in in H; unfold "#" in H2; intuition.
+  - inversion H0; subst; simpl in *;
+    eapply binds_push_neq; eauto.
+Qed.
+
+Lemma final_preserves_binds_DInc2: forall st st' pid pid' int,
+  binds pid DInc2 st.(pc) ->
+  final_state register_counter_impl st pid' int st' ->
+  binds pid DInc2 st'.(pc).
+Proof.
+  intros.
+  destruct (Nat.eq_dec pid pid').
+  - subst. inversion H0; subst; simpl in *.
+    -- apply binds_concat_inv in H. intuition.
+      --- eapply binds_concat_right; eauto.
+      --- unfold binds in H2. simpl in H2.
+        rewrite Nat.eqb_refl in H2. inversion H2.
+    -- apply binds_concat_inv in H. intuition.
+      --- eapply binds_concat_right; eauto.
+      --- unfold binds in H2. simpl in H2.
+        rewrite Nat.eqb_refl in H2. inversion H2.
+  - inversion H0; intros; subst;
+    eapply binds_remove; eauto;
+    apply notin_neq; eauto.
+Qed.
+
+Lemma no_action_preserves_DInc2 : forall st st' pid acts in_acts,
+  binds pid DInc2 st.(pc) ->
+  gather_pid_internal_events in_acts pid = [] ->
+  gather_pid_external_events acts pid = [] ->
+  valid_execution_fragment register_counter_impl st st' acts in_acts ->
+  binds pid DInc2 st'.(pc).
+Proof.
+  intros. induction H2.
+  - subst. assumption.
+  - simpl in H0.
+    destruct (pid =? pid0)eqn:Heq.
+    -- inversion H0.
+    -- apply IHvalid_execution_fragment; auto.
+      eapply step_preserves_binds_DInc2; eauto.
+      eapply Nat.eqb_neq; eauto.
+  - simpl in H1.
+    destruct (pid =? pid0)eqn:Heq.
+    -- inversion H1.
+    -- apply IHvalid_execution_fragment; auto.
+      eapply at_external_preserves_binds_DInc2; eauto.
+  - simpl in H1.
+    destruct (pid =? pid0)eqn:Heq.
+    -- inversion H1.
+    -- apply IHvalid_execution_fragment; auto.
+      eapply after_external_preserves_binds_DInc2; eauto.
+      eapply Nat.eqb_neq; eauto.
+  - simpl in H1.
+    destruct (pid =? pid0)eqn:Heq.
+    -- inversion H1.
+    -- apply IHvalid_execution_fragment; auto.
+      eapply initial_preserves_binds_DInc2; eauto.
+  - simpl in H1.
+    destruct (pid =? pid0)eqn:Heq.
+    -- inversion H1.
+    -- apply IHvalid_execution_fragment; auto.
+      eapply final_preserves_binds_DInc2; eauto.
+Qed.
+
+Lemma step_preserves_binds_DRead2: forall st st' pid pid' int,
+  binds pid DRead2 st.(pc) ->
+  step register_counter_impl st pid' int st' ->
+  pid <> pid' ->
+  binds pid DRead2 st'.(pc).
+Proof.
+  inversion 2; intros; subst;
+  eapply binds_neq_middle; eauto.
+Qed.
+
+Lemma at_external_preserves_binds_DRead2: forall st st' pid pid' int,
+  binds pid DRead2 st.(pc) ->
+  at_external register_counter_impl st pid' int st' ->
+  binds pid DRead2 st'.(pc).
+Proof.
+  intros.
+  destruct (Nat.eq_dec pid pid').
+  - subst. inversion H0; subst; simpl in *.
+    -- apply binds_concat_inv in H. intuition.
+      --- eapply binds_concat_right; eauto.
+      --- unfold binds in H2. simpl in H2.
+        rewrite Nat.eqb_refl in H2. inversion H2.
+    -- apply binds_concat_inv in H. intuition.
+      --- eapply binds_concat_right; eauto.
+      --- unfold binds in H2. simpl in H2.
+        rewrite Nat.eqb_refl in H2. inversion H2.
+    -- apply binds_concat_inv in H. intuition.
+      --- eapply binds_concat_right; eauto.
+      --- unfold binds in H2. simpl in H2.
+        rewrite Nat.eqb_refl in H2. inversion H2.
+  - inversion H0; intros; subst;
+    eapply binds_neq_middle; eauto.
+Qed.
+
+Lemma after_external_preserves_binds_DRead2: forall st st' pid pid' int,
+  binds pid DRead2 st.(pc) ->
+  after_external register_counter_impl st pid' int st' ->
+  pid <> pid' ->
+  binds pid DRead2 st'.(pc).
+Proof.
+  inversion 2; intros; subst;
+  eapply binds_neq_middle; eauto.
+Qed.
+
+Lemma initial_preserves_binds_DRead2: forall st st' pid pid' int,
+  binds pid DRead2 st.(pc) ->
+  initial_state register_counter_impl st pid' int st' ->
+  binds pid DRead2 st'.(pc).
+Proof.
+  intros.
+  destruct (Nat.eq_dec pid pid').
+  - subst. inversion H0; subst; simpl in *;
+    apply binds_in in H; unfold "#" in H2; intuition.
+  - inversion H0; subst; simpl in *;
+    eapply binds_push_neq; eauto.
+Qed.
+
+Lemma final_preserves_binds_DRead2: forall st st' pid pid' int,
+  binds pid DRead2 st.(pc) ->
+  final_state register_counter_impl st pid' int st' ->
+  binds pid DRead2 st'.(pc).
+Proof.
+  intros.
+  destruct (Nat.eq_dec pid pid').
+  - subst. inversion H0; subst; simpl in *.
+    -- apply binds_concat_inv in H. intuition.
+      --- eapply binds_concat_right; eauto.
+      --- unfold binds in H2. simpl in H2.
+        rewrite Nat.eqb_refl in H2. inversion H2.
+    -- apply binds_concat_inv in H. intuition.
+      --- eapply binds_concat_right; eauto.
+      --- unfold binds in H2. simpl in H2.
+        rewrite Nat.eqb_refl in H2. inversion H2.
+  - inversion H0; intros; subst;
+    eapply binds_remove; eauto;
+    apply notin_neq; eauto.
+Qed.
+
+Lemma no_action_preserves_DRead2 : forall st st' pid acts in_acts,
+  binds pid DRead2 st.(pc) ->
+  gather_pid_internal_events in_acts pid = [] ->
+  gather_pid_external_events acts pid = [] ->
+  valid_execution_fragment register_counter_impl st st' acts in_acts ->
+  binds pid DRead2 st'.(pc).
+Proof.
+  intros. induction H2.
+  - subst. assumption.
+  - simpl in H0.
+    destruct (pid =? pid0)eqn:Heq.
+    -- inversion H0.
+    -- apply IHvalid_execution_fragment; auto.
+      eapply step_preserves_binds_DRead2; eauto.
+      eapply Nat.eqb_neq; eauto.
+  - simpl in H1.
+    destruct (pid =? pid0)eqn:Heq.
+    -- inversion H1.
+    -- apply IHvalid_execution_fragment; auto.
+      eapply at_external_preserves_binds_DRead2; eauto.
+  - simpl in H1.
+    destruct (pid =? pid0)eqn:Heq.
+    -- inversion H1.
+    -- apply IHvalid_execution_fragment; auto.
+      eapply after_external_preserves_binds_DRead2; eauto.
+      eapply Nat.eqb_neq; eauto.
+  - simpl in H1.
+    destruct (pid =? pid0)eqn:Heq.
+    -- inversion H1.
+    -- apply IHvalid_execution_fragment; auto.
+      eapply initial_preserves_binds_DRead2; eauto.
+  - simpl in H1.
+    destruct (pid =? pid0)eqn:Heq.
+    -- inversion H1.
+    -- apply IHvalid_execution_fragment; auto.
+      eapply final_preserves_binds_DRead2; eauto.
+Qed.
 
 Section MoreDefinitions.
 
@@ -351,7 +477,16 @@ Fixpoint gather_requests' (pc : LibEnv.env DCounter_pc) (regst : state Register)
                       end
         | DInc7 => requests'
         | DRead1 => (pid, CntRead)::requests'
-        | DRead2 => (pid, CntRead)::requests'
+        | DRead2 => match get pid regst.(Register.requests) with
+                  | None => match get pid regst.(Register.responses) with
+                            | None => (pid, CntRead)::requests'
+                            | Some res => match res with
+                                          | RegCASOk _ => (pid, CntRead)::requests'
+                                          | RegReadOk _ => requests'
+                                          end
+                            end
+                  | Some _ => (pid, CntRead)::requests'
+                  end
         | DRead3 _ => requests'
         end)
   end.
@@ -383,7 +518,16 @@ Fixpoint gather_responses' (pc : LibEnv.env DCounter_pc) (regst : state Register
                       end
         | DInc7 => (pid, CntIncOk)::responses'
         | DRead1 => responses' 
-        | DRead2 => responses'
+        | DRead2 => match get pid regst.(Register.requests) with
+                  | None => match get pid regst.(Register.responses) with
+                            | None => responses'
+                            | Some res => match res with
+                                          | RegCASOk _ => responses'
+                                          | RegReadOk ret => (pid, CntReadOk ret)::responses'
+                                          end
+                            end
+                  | Some _ => responses'
+                  end
         | DRead3 ret => (pid, CntReadOk ret)::responses'
         end)
   end.
@@ -408,6 +552,15 @@ Proof.
           +++ simpl. apply notin_union; auto.
         ++ simpl. apply notin_union; auto.
     -- destruct ret; eauto. simpl. apply notin_union; eauto.
+    -- destruct (get v (Register.requests regst)).
+      + simpl. apply notin_union; eauto.
+      + destruct (get v (Register.responses regst)).
+        ++ destruct r.
+          +++ destruct success; simpl; intuition.
+            apply notin_union; auto.
+            apply notin_union; auto.
+          +++ assumption.
+        ++ simpl. apply notin_union; auto.
 Qed.
 
 Lemma gather_responses_preserves_pid_notin': forall pc pid regst,
@@ -430,6 +583,13 @@ Proof.
           +++ assumption.
         ++ assumption.
     -- destruct ret; eauto. simpl. apply notin_union; eauto.
+    -- destruct (get v (Register.requests regst)).
+      + assumption.
+      + destruct (get v (Register.responses regst)).
+        ++ destruct r.
+          +++ destruct success; simpl; intuition.
+          +++ apply notin_union; auto.
+        ++ assumption.
 Qed.
 
 Lemma gather_requests_dist': forall pc pc' regst,
@@ -448,6 +608,13 @@ Proof.
           +++ reflexivity.
         ++ reflexivity.
     -- destruct ret; reflexivity.
+    -- destruct (get v (Register.requests regst)); simpl.
+      + reflexivity.
+      + destruct (get v (Register.responses regst)); simpl.
+        ++ destruct r; simpl.
+          +++ destruct success; simpl; intuition.
+          +++ reflexivity.
+        ++ reflexivity.
 Qed.
 
 Lemma gather_responses_dist': forall pc pc' regst,
@@ -466,6 +633,13 @@ Proof.
           +++ reflexivity.
         ++ reflexivity.
     -- destruct ret; reflexivity.
+    -- destruct (get v (Register.requests regst)); simpl.
+      + reflexivity.
+      + destruct (get v (Register.responses regst)); simpl.
+        ++ destruct r; simpl.
+          +++ destruct success; simpl; intuition.
+          +++ reflexivity.
+        ++ reflexivity.
 Qed.
 
 Lemma gather_requests_notin_req: forall pc pid inv res v pid_inv,
@@ -492,6 +666,15 @@ Proof.
           +++ f_equal; eapply IHpc; eauto.
     -- destruct ret; simpl; try (f_equal; eapply IHpc; eauto).
       eapply IHpc; eauto.
+    -- apply notin_neq in H0.
+      assert (Hneq: x =? pid = false).
+      apply Nat.eqb_neq; intuition .
+      rewrite Hneq.
+      destruct (get x inv); simpl.
+      --- f_equal; eapply IHpc; eauto.
+      --- destruct (get x res); simpl; try (f_equal; eapply IHpc; eauto).
+        destruct r; try (f_equal; eapply IHpc; eauto).
+        eapply IHpc; eauto.
 Qed.
 
 Lemma gather_responses_notin_req: forall pc pid inv res v pid_inv,
@@ -518,6 +701,16 @@ Proof.
           +++ eapply IHpc; eauto.
     -- destruct ret; simpl; try (f_equal; eapply IHpc; eauto).
       eapply IHpc; eauto.
+    -- apply notin_neq in H0.
+      assert (Hneq: x =? pid = false).
+      apply Nat.eqb_neq; intuition .
+      rewrite Hneq.
+      destruct (get x inv); simpl.
+      --- eapply IHpc; eauto.
+      --- destruct (get x res); simpl; try (f_equal; eapply IHpc; eauto).
+        destruct r; try (f_equal; eapply IHpc; eauto).
+        destruct success; simpl; try (f_equal; eapply IHpc; eauto); try (eapply IHpc; eauto).
+        eapply IHpc; eauto.
 Qed.
 
 Lemma gather_requests_notin_res: forall pc pid inv res v pid_res,
@@ -544,6 +737,15 @@ Proof.
           +++ f_equal; eapply IHpc; eauto.
     -- destruct ret; simpl; try (f_equal; eapply IHpc; eauto).
       eapply IHpc; eauto.
+    -- apply notin_neq in H0.
+      assert (Hneq: x =? pid = false).
+      apply Nat.eqb_neq; intuition .
+      rewrite Hneq.
+      destruct (get x inv); simpl.
+      --- f_equal; eapply IHpc; eauto.
+      --- destruct (get x res); simpl; try (f_equal; eapply IHpc; eauto).
+        destruct r; try (f_equal; eapply IHpc; eauto).
+        eapply IHpc; eauto.
 Qed.
 
 Lemma gather_responses_notin_res: forall pc pid inv res v pid_res,
@@ -570,6 +772,16 @@ Proof.
           +++ eapply IHpc; eauto.
     -- destruct ret; simpl; try (f_equal; eapply IHpc; eauto).
       eapply IHpc; eauto.
+    -- apply notin_neq in H0.
+      assert (Hneq: x =? pid = false).
+      apply Nat.eqb_neq; intuition .
+      rewrite Hneq.
+      destruct (get x inv); simpl.
+      --- eapply IHpc; eauto.
+      --- destruct (get x res); simpl; try (f_equal; eapply IHpc; eauto).
+        destruct r; try (f_equal; eapply IHpc; eauto).
+        destruct success; simpl; try (f_equal; eapply IHpc; eauto); try (eapply IHpc; eauto).
+        eapply IHpc; eauto.
 Qed.
 
 Lemma gather_requests_notin_env: forall pc pid inv inv' res v pid_inv,
@@ -594,6 +806,13 @@ Proof.
       --- apply notin_neq in H0; intuition.
     -- destruct ret; simpl; try (f_equal; eapply IHpc; eauto).
       eapply IHpc; eauto.
+    -- apply notin_neq in H0.
+      rewrite get_notin_eq; intuition.
+      destruct (get x (inv ++ inv')); simpl; try (f_equal; eapply IHpc; eauto).
+      destruct (get x res); simpl; try (f_equal; eapply IHpc; eauto).
+        destruct r; simpl; try (f_equal; eapply IHpc; eauto).
+        (* destruct success; simpl; try (f_equal; eapply IHpc; eauto). *)
+        eapply IHpc; eauto.
 Qed.
 
 Lemma gather_responses_notin_env: forall pc pid inv inv' res v pid_inv,
@@ -618,6 +837,14 @@ Proof.
       --- apply notin_neq in H0; intuition.
     -- destruct ret; simpl; try (f_equal; eapply IHpc; eauto).
       eapply IHpc; eauto.
+    -- apply notin_neq in H0.
+      rewrite get_notin_eq; intuition.
+      destruct (get x (inv ++ inv'));simpl; try (f_equal; eapply IHpc; eauto).
+      --- eapply IHpc; eauto.
+      --- destruct (get x res); simpl; try (f_equal; eapply IHpc; eauto).
+        destruct r; simpl; try (f_equal; eapply IHpc; eauto); try (eapply IHpc; eauto).
+        (* destruct success; simpl; try (f_equal; eapply IHpc; eauto). *)
+        eapply IHpc; eauto.
 Qed.
 
 Lemma gather_requests_any_v_reg: forall pc inv res v v',
@@ -633,6 +860,11 @@ Proof.
       destruct success; simpl; try (f_equal; eapply IHpc; eauto).
       eapply IHpc; eauto.
     -- destruct ret; simpl; try (f_equal; eapply IHpc; eauto).
+      eapply IHpc; eauto.
+    -- destruct (get x inv); simpl; try (f_equal; eapply IHpc; eauto).
+      destruct (get x res); simpl; try (f_equal; eapply IHpc; eauto).
+      destruct r; simpl; try (f_equal; eapply IHpc; eauto).
+      (* destruct success; simpl; try (f_equal; eapply IHpc; eauto). *)
       eapply IHpc; eauto.
 Qed.
 
@@ -651,6 +883,12 @@ Proof.
       all : eapply IHpc; eauto.
     -- destruct ret; simpl; try (f_equal; eapply IHpc; eauto).
       eapply IHpc; eauto.
+    -- destruct (get x inv); simpl; try (f_equal; eapply IHpc; eauto).
+      eapply IHpc; eauto.
+      destruct (get x res); simpl; try (f_equal; eapply IHpc; eauto).
+      destruct r; simpl; try (f_equal; eapply IHpc; eauto).
+      destruct success; simpl; try (f_equal; eapply IHpc; eauto).
+      all : eapply IHpc; eauto.
 Qed.
 
 Lemma gather_requests_preserves_ok: forall pc regst,
@@ -674,6 +912,15 @@ Proof.
       eauto.
       econstructor; eauto. eapply gather_requests_preserves_pid_notin'; eauto.
     -- eauto.
+    -- destruct (get x (Register.requests regst)); simpl.
+      econstructor; eauto. eapply gather_requests_preserves_pid_notin'; eauto.
+      destruct (get x (Register.responses regst)).
+      destruct r; simpl. destruct success; simpl.
+      eauto.
+      econstructor; eauto. eapply gather_requests_preserves_pid_notin'; eauto.
+      econstructor; eauto. eapply gather_requests_preserves_pid_notin'; eauto.
+      eapply IHpc; eauto.
+      econstructor; eauto. eapply gather_requests_preserves_pid_notin'; eauto.
     -- eauto.
 Qed.
 
@@ -698,6 +945,14 @@ Proof.
     -- destruct ret; simpl.
       econstructor; eauto. eapply gather_responses_preserves_pid_notin'; eauto.
       eauto.
+    -- destruct (get x (Register.requests regst)); simpl.
+      eauto.
+      destruct (get x (Register.responses regst)).
+      destruct r; simpl. destruct success; simpl.
+      eapply IHpc; eauto.
+      eapply IHpc; eauto.
+      econstructor; eauto. eapply gather_responses_preserves_pid_notin'; eauto.
+      eapply IHpc; eauto.
 Qed.
 
 (* 
@@ -951,6 +1206,7 @@ Proof.
           rewrite gather_requests_notin_req; auto.
           simpl.
           rewrite gather_requests_notin_req; auto.
+          rewrite Nat.eqb_refl.
           apply sameset_refl.
           eapply gather_requests_preserves_ok in H3.
           rewrite gather_requests_dist' in H3.
@@ -994,6 +1250,7 @@ Proof.
           rewrite gather_responses_notin_req; auto.
           simpl.
           rewrite gather_responses_notin_req; auto.
+          rewrite Nat.eqb_refl.
           apply sameset_refl.
           eapply gather_responses_preserves_ok in H3.
           rewrite gather_responses_dist' in H3.
@@ -1229,9 +1486,6 @@ Proof.
           specialize (Hokremove _ _ _ _ _ H7).
           intuition.
       ---
-      
-      
-      
       simpl in *.
         destruct qb; intuition.
         inversion H; subst.
@@ -1249,15 +1503,8 @@ Proof.
         simpl in Hremain, Hbefore. intuition.
         inversion H7; subst. clear H7.
         inversion H12; subst. simpl in *.
-
-
-        (* exists s2. exists nil.
-          econstructor; eauto.
-          econstructor; eauto.
-          unfold f. simpl. *)
-
         assert (Hst2: binds pid DInc2 st2.(pc)).
-        eapply no_action_preserves_DInc5; eauto.
+        eapply no_action_preserves_DInc2; eauto.
         apply regcntimpl_reachable_inv in H18.
         unfold RegCntImplStateWF in H18.
         simpl in H18.
@@ -1271,13 +1518,311 @@ Proof.
         rewrite Hpc in H5. simpl in H5.
         rewrite gather_requests_dist' in H5.
         simpl in H5.
-        rewrite gather_requests_notin_env in H5.
-        rewrite get_notin_env in H5. simpl in H5.
-        rewrite Nat.eqb_refl in H5.
-        rewrite gather_requests_notin_env in H5.
 
-        destruct (value s2 =? r pid)eqn:Hbool.
- 
+        assert (RegCntImplStateWF st2).
+          eapply regcntimpl_valid_execution_preserves_ok; eauto.
+          eapply regcntimpl_reachable_inv; eauto.
+          unfold RegCntImplStateWF in H21.
+          rewrite Hpc in H21.
+          generalize ok_middle_inv; intro Hokremove.
+          specialize (Hokremove _ _ _ _ _ H21).
+          intuition.
+
+        unfold RegStateWF in H2.
+        simpl in H2. intuition.
+        apply ok_middle_inv with (x:=pid) in H24. intuition.
+
+        rewrite gather_requests_notin_env in H5; intuition.
+        rewrite gather_requests_notin_env in H5; intuition.
+        exists s2. exists nil.
+        econstructor; eauto.
+        econstructor; eauto.
+        unfold f. simpl. intuition.
+
+        rewrite Hpc.
+        rewrite gather_requests_dist'.
+        simpl.
+        rewrite gather_requests_notin_res; intuition.
+        rewrite gather_requests_notin_res; intuition.
+
+        rewrite Hpc.
+        rewrite gather_responses_dist'.
+        simpl.
+        rewrite gather_responses_notin_res; intuition.
+        rewrite gather_responses_notin_res; intuition.
+
+        rewrite Hpc in H0.
+        rewrite gather_responses_dist' in H0.
+        simpl in H0.
+        rewrite gather_responses_notin_env in H0; intuition.
+        rewrite gather_responses_notin_env in H0; intuition.
+        (* RegRead in Read, a linearization point *)
+        *
+        simpl in Hremain, Hbefore. intuition.
+        inversion H7; subst. clear H7.
+        inversion H12; subst. simpl in *.
+        assert (Hst2: binds pid DRead2 st2.(pc)).
+        eapply no_action_preserves_DRead2; eauto.
+        apply regcntimpl_reachable_inv in H18.
+        unfold RegCntImplStateWF in H18.
+        simpl in H18.
+        eapply binds_concat_left; eauto.
+        unfold binds. simpl. rewrite Nat.eqb_refl.
+        reflexivity.
+        apply ok_middle_inv in H18.
+        intuition.
+        apply binds_reconstruct in Hst2.
+        destruct Hst2 as [pc2' [pc2'' Hpc]].
+        rewrite Hpc in H5. simpl in H5.
+        rewrite gather_requests_dist' in H5.
+        simpl in H5.
+
+        assert (RegCntImplStateWF st2).
+          eapply regcntimpl_valid_execution_preserves_ok; eauto.
+          eapply regcntimpl_reachable_inv; eauto.
+          unfold RegCntImplStateWF in H21.
+          rewrite Hpc in H21.
+          generalize ok_middle_inv; intro Hokremove.
+          specialize (Hokremove _ _ _ _ _ H21).
+          intuition.
+
+        unfold RegStateWF in H2.
+        simpl in H2. intuition.
+        apply ok_middle_inv with (x:=pid) in H24 .
+
+        rewrite gather_requests_notin_env in H5; intuition.
+        rewrite gather_requests_notin_env in H5; intuition.
+        rewrite get_notin_env in H5; intuition.
+        simpl in H5.
+        rewrite Nat.eqb_refl in H5.
+
+        exists (mkCntState 
+                  (gather_requests' pc2'
+                  (mkRegState (inv'++inv'') res ((value s2)))
+                    ++ gather_requests' pc2'' (mkRegState (inv'++inv'') res (value s2)))
+                  ((pid, CntReadOk (value s2))::responses s2) ((value s2))).
+        exists [(pid, int_cnt_read)]. intuition.
+
+          ++ econstructor; eauto.
+            2 : {
+              econstructor; eauto.
+            }
+            destruct s2. simpl in *.
+            econstructor; eauto.
+            eapply sym_sameset; eauto.
+          ++ unfold f. simpl.
+            intuition.
+            +++ 
+            rewrite Hpc.
+              rewrite gather_requests_dist'.
+              (* apply regcntimpl_reachable_inv in H18.
+              assert (RegCntImplStateWF st2).
+              eapply regcntimpl_valid_execution_preserves_ok; eauto.
+              unfold RegCntImplStateWF in H7.
+              rewrite Hpc in H7. *)
+              rewrite gather_requests_notin_res.
+              simpl.
+              rewrite get_notin_env.
+              assert (Hl : inv'' = inv'' ++ []).
+              rewrite app_nil_r. reflexivity.
+              rewrite Hl.
+              rewrite get_notin_env. simpl.
+              rewrite Nat.eqb_refl.
+              rewrite gather_requests_notin_res.
+              (* rewrite gather_requests_any_v_reg with (v':=value s2).
+              rewrite gather_requests_any_v_reg with (v:=S (r pid)) (v':=value s2). *)
+              eapply sameset_refl; eauto.
+              eapply ok_remove in H21.
+              eapply gather_requests_preserves_ok in H21.
+              unfold ";" in H21.
+              rewrite gather_requests_dist' in H21.
+              eauto.
+              eapply ok_middle_inv in H21. intuition.
+              intuition. intuition. intuition.
+            +++ rewrite Hpc.
+              rewrite gather_responses_dist'.
+              (* apply regcntimpl_reachable_inv in H18.
+              assert (RegCntImplStateWF st2).
+              eapply regcntimpl_valid_execution_preserves_ok; eauto.
+              unfold RegCntImplStateWF in H7.
+              rewrite Hpc in H7.
+              generalize ok_middle_inv; intro Hokremove.
+              specialize (Hokremove _ _ _ _ _ H7).
+              unfold RegStateWF in H2.
+              simpl in H2. intuition.
+              apply ok_middle_inv with (x:=pid) in H17. *)
+
+              rewrite gather_responses_notin_res; intuition.
+              simpl.
+              rewrite get_notin_env; intuition.
+              assert (Hl : inv'' = inv'' ++ []).
+              rewrite app_nil_r. reflexivity.
+              rewrite Hl.
+              rewrite get_notin_env; intuition. simpl.
+              rewrite Nat.eqb_refl; intuition.
+              rewrite gather_responses_notin_res; intuition.
+              (* rewrite gather_responses_any_v_reg with (v':=value s2); intuition.
+              rewrite gather_responses_any_v_reg with (v:=S (r pid)) (v':=value s2); intuition. *)
+              generalize sameset_ExF_xEF; intro.
+              eapply sameset_congruence with (F:= [(pid, CntReadOk (value s2))]) in H0; intuition.
+              simpl in H0.
+              eapply trans_sameset.
+              eapply sameset_ExF_xEF; eauto.
+              rewrite <-Hl.
+              eapply ok_ExF_xEF.
+
+              rewrite <-gather_responses_dist'.
+              econstructor; eauto.
+              eapply gather_responses_preserves_ok; eauto.
+              eapply ok_remove in H21; eauto.
+              eapply gather_responses_preserves_pid_notin'; eauto.
+              eapply ok_middle_inv in H21; eauto.
+              apply notin_concat in H21. assumption.
+              eauto. simpl.
+              rewrite Hpc. simpl.
+              rewrite gather_responses_dist'.
+              simpl. rewrite get_notin_env; intuition. simpl.
+              rewrite Nat.eqb_refl.
+              rewrite gather_responses_notin_env; intuition.
+              rewrite gather_responses_notin_env; intuition.
+              rewrite app_nil_r.
+              eapply sameset_refl.
+
+              rewrite <-gather_responses_dist'.
+              econstructor; eauto.
+              eapply gather_responses_preserves_ok; eauto.
+              eapply ok_remove in H21; eauto.
+              eapply gather_responses_preserves_pid_notin'; eauto.
+              eapply ok_middle_inv in H21; eauto.
+              apply notin_concat in H21. assumption.
+    -- exists s2. exists nil.
+      econstructor; eauto.
+      econstructor; eauto.
+      unfold f. simpl.
+      unfold f in H0. simpl in H0.
+      intuition.
+      --- eapply trans_sameset; eauto.
+        inversion H; subst; inversion H4; subst; simpl in *.
+        + repeat rewrite gather_requests_dist'.
+          simpl. destruct b.
+          ++ destruct (get pid inv).
+            +++
+        
+          (* unfold RegCntImplStateWF in H3.
+          simpl in H3.
+          generalize ok_middle_inv; intro.
+          specialize (H7 _ _ _ _ _ H3).
+          intuition. *)
+          simpl.
+          (* rewrite gather_requests_notin_req; auto. *)
+          destruct b.
+          ++ 
+          (* rewrite gather_requests_notin_env; auto. *)
+            destruct
+          apply sameset_refl.
+          eapply gather_requests_preserves_ok in H3.
+          rewrite gather_requests_dist' in H3.
+          simpl in H3. eauto.
+        + repeat rewrite gather_requests_dist'.
+
+          unfold RegCntImplStateWF in H3.
+          simpl in H3.
+          generalize ok_middle_inv; intro.
+          specialize (H6 _ _ _ _ _ H3).
+          intuition.
+          rewrite gather_requests_notin_req; auto.
+          simpl. rewrite Nat.eqb_refl.
+          rewrite gather_requests_notin_req; auto.
+          apply sameset_refl.
+          eapply gather_requests_preserves_ok in H3.
+          rewrite gather_requests_dist' in H3.
+          simpl in H3. eauto.
+        + repeat rewrite gather_requests_dist'.
+          unfold RegCntImplStateWF in H3.
+          simpl in H3.
+          
+          generalize ok_middle_inv; intro.
+          specialize (H11 _ _ _ _ _ H3).
+          intuition.
+          rewrite gather_requests_notin_req; auto.
+          simpl.
+          rewrite gather_requests_notin_req; auto.
+          rewrite Nat.eqb_refl.
+          apply sameset_refl.
+          eapply gather_requests_preserves_ok in H3.
+          rewrite gather_requests_dist' in H3.
+          simpl in H3. eauto.
+      --- eapply trans_sameset; eauto.
+        inversion H; subst; inversion H5; subst; simpl in *.
+        + repeat rewrite gather_responses_dist'.
+          unfold RegCntImplStateWF in H3.
+          simpl in H3.
+          generalize ok_middle_inv; intro.
+          specialize (H11 _ _ _ _ _ H3).
+          intuition.
+          rewrite gather_responses_notin_req; auto.
+          simpl.
+          rewrite gather_responses_notin_req; auto.
+          apply sameset_refl.
+          eapply gather_responses_preserves_ok in H3.
+          rewrite gather_responses_dist' in H3.
+          simpl in H3. eauto.
+        + repeat rewrite gather_responses_dist'.
+
+          unfold RegCntImplStateWF in H3.
+          simpl in H3.
+          generalize ok_middle_inv; intro.
+          specialize (H6 _ _ _ _ _ H3).
+          intuition.
+          rewrite gather_responses_notin_req; auto.
+          simpl. rewrite Nat.eqb_refl.
+          rewrite gather_responses_notin_req; auto.
+          apply sameset_refl.
+          eapply gather_responses_preserves_ok in H3.
+          rewrite gather_responses_dist' in H3.
+          simpl in H3. eauto.
+        + repeat rewrite gather_responses_dist'.
+          unfold RegCntImplStateWF in H3.
+          simpl in H3.
+          
+          generalize ok_middle_inv; intro.
+          specialize (H11 _ _ _ _ _ H3).
+          intuition.
+          rewrite gather_responses_notin_req; auto.
+          simpl.
+          rewrite gather_responses_notin_req; auto.
+          rewrite Nat.eqb_refl.
+          apply sameset_refl.
+          eapply gather_responses_preserves_ok in H3.
+          rewrite gather_responses_dist' in H3.
+          simpl in H3. eauto.
+      --- inversion H5; subst; simpl; intuition.
+    
+
+
+
+
+        econstructor; eauto.
+        econstructor; eauto.
+        unfold f. simpl. intuition.
+
+        rewrite Hpc.
+        rewrite gather_requests_dist'.
+        simpl.
+        rewrite gather_requests_notin_res; intuition.
+        rewrite gather_requests_notin_res; intuition.
+
+        rewrite Hpc.
+        rewrite gather_responses_dist'.
+        simpl.
+        rewrite gather_responses_notin_res; intuition.
+        rewrite gather_responses_notin_res; intuition.
+
+        rewrite Hpc in H0.
+        rewrite gather_responses_dist' in H0.
+        simpl in H0.
+        rewrite gather_responses_notin_env in H0; intuition.
+        rewrite gather_responses_notin_env in H0; intuition.
 
 
 

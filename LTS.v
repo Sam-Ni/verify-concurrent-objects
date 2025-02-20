@@ -387,3 +387,4 @@ End LINK.
 
 Arguments L1State {liA liB liC L1 L2}.
 Arguments L2State {liA liB liC L1 L2}.
+Arguments linked_after_external {liA liB liC L1 L2}.

@@ -93,10 +93,11 @@ Section Counter.
     inv' = (inv1 ++ inv2) ->
     st' = mkCntState inv' ((pid, CntIncOk)::res) (S v) ->
     counter_step st pid int_cnt_inc st'
-  | counter_step_read : forall pid st st' inv inv' inv'' res v,
-    inv = inv' ++ [(pid, CntRead)] ++ inv'' ->
+  | counter_step_read : forall pid st st' inv inv1 inv2 res v inv',
+    sameset inv (inv1 ++ [(pid, CntRead)] ++ inv2) ->
     st = mkCntState inv res v ->
-    st' = mkCntState (inv' ++ inv'') ((pid, CntReadOk v)::res) v ->
+    inv' = (inv1 ++ inv2) ->
+    st' = mkCntState inv' ((pid, CntReadOk v)::res) v ->
     counter_step st pid int_cnt_read st' 
   .
 
