@@ -44,7 +44,7 @@ Proof.
       eapply binds_push_neq; eauto.
 Qed.
 
-Lemma get_notin_eq: forall x inv inv' pid (pid_inv : A),
+(* Lemma get_notin_eq: forall x inv inv' pid (pid_inv : A),
   x <> pid ->
   get x (inv ++ (pid, pid_inv) :: inv') =
   get x (inv ++ inv').
@@ -56,7 +56,7 @@ Proof.
     destruct (x =? v)eqn:Heq.
     -- reflexivity.
     -- apply IHinv. assumption.
-Qed.
+Qed. *)
 
 Lemma get_notin_env: forall (inv : LibEnv.env A) inv' x,
   x # inv ->
@@ -1278,7 +1278,7 @@ Proof.
         (st':= mkRegState (inv' ++ (pid, RegCAS old0 new0) :: inv'')
                                 res (value s2)); simpl; eauto.
         unfold binds. simpl. rewrite Nat.eqb_refl. reflexivity.
-        unfold RegStateWF. simpl. intuition.
+        unfold _RegStateWF. simpl. intuition.
         econstructor; eauto.
         simpl. eapply binds_concat_left.
         unfold binds. simpl. rewrite Nat.eqb_refl. reflexivity.
@@ -1422,10 +1422,10 @@ Proof.
               assert (RegCntImplStateWF st2).
               eapply regcntimpl_valid_execution_preserves_ok; eauto.
               eapply regcntimpl_reachable_inv; eauto.
-              unfold RegCntImplStateWF in H2.
-              rewrite Hpc in H2.
+              unfold RegCntImplStateWF in H23.
+              rewrite Hpc in H23.
               generalize ok_middle_inv; intro Hokremove.
-              specialize (Hokremove _ _ _ _ _ H2).
+              specialize (Hokremove _ _ _ _ _ H23).
 
             rewrite get_notin_env; intuition.
             assert (Hl : inv'' = inv'' ++ []) by (rewrite app_nil_r; reflexivity).
@@ -1444,10 +1444,10 @@ Proof.
               assert (RegCntImplStateWF st2).
               eapply regcntimpl_valid_execution_preserves_ok; eauto.
               eapply regcntimpl_reachable_inv; eauto.
-              unfold RegCntImplStateWF in H2.
-              rewrite Hpc in H2.
+              unfold RegCntImplStateWF in H23.
+              rewrite Hpc in H23.
               generalize ok_middle_inv; intro Hokremove.
-              specialize (Hokremove _ _ _ _ _ H2).
+              specialize (Hokremove _ _ _ _ _ H23).
 
             rewrite get_notin_env; intuition.
             assert (Hl : inv'' = inv'' ++ []) by (rewrite app_nil_r; reflexivity).
@@ -1705,6 +1705,7 @@ Proof.
         inversion H; subst; inversion H4; subst; simpl in *.
         + repeat rewrite gather_requests_dist'.
           simpl. destruct b.
+          (* prove by contradiction *)
           ++ destruct (get pid inv).
             +++
         

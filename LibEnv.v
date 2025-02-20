@@ -94,6 +94,19 @@ Proof.
   simpl. reflexivity.
 Qed.
 
+Lemma get_notin_eq: forall x inv inv' pid (pid_inv : A),
+  x <> pid ->
+  get x (inv ++ (pid, pid_inv) :: inv') =
+  get x (inv ++ inv').
+Proof.
+  induction inv; simpl; intros.
+  - apply Nat.eqb_neq in H.
+    rewrite H. reflexivity.
+  - destruct a.
+    destruct (x =? v)eqn:Heq.
+    -- reflexivity.
+    -- apply IHinv. assumption.
+Qed.
 
 End StrutureProperties.
 
