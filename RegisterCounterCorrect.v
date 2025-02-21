@@ -17,7 +17,8 @@ Import ListNotations.
 Section Correctness.
 
 (* 
-  Potential problem: the mapping relation missed some details
+  forward simulation between RegisterCounter and CounterSpec.
+  It indicates that requests, responses and value of Counter can be computed by observing the state of RegisterCounter.
 *)
 Definition f (s1 : register_counter.(state)) (s2 : counter.(state)) :=
   sameset (gather_requests' s1.(L2State).(RegisterCounterImpl.pc) s1.(L1State)) s2.(requests) /\
@@ -25,9 +26,11 @@ Definition f (s1 : register_counter.(state)) (s2 : counter.(state)) :=
   s1.(L1State).(Register.value) = s2.(value).
 
 (* 
-  The proof stuck in the case of fsim_simulation (to be more specific, when the action is int_cas in Register).
-  Problem: the rule linked_step_L1_internal is too general 
-            and additional information may be added in linked_state (see LINK).
+  Prove that RegisterCounter refines Counter by applying forward simulation f with invariant of Register and RegisterCounterImpl.
+  From the proof it can be seen that
+  Inc takes effects only in the case where int_cas succeeds
+  and that Read takes effects only in the case where int_read (of Register) performs,
+  which indicates that our RegisterCounter is linearizable.
 *)
 Theorem register_counter_correct: refines register_counter counter.
 Proof.
@@ -84,8 +87,6 @@ Proof.
       eapply notin_sameset.
       2: { eauto. }
         eapply gather_responses_preserves_pid_notin'; eauto.
-      (* rewrite <-H4. apply gather_requests_preserves_pid_notin'; auto.
-      rewrite <-H0. apply gather_responses_preserves_pid_notin'; auto. *)
       destruct s2.
       reflexivity.
     -- simpl. unfold f in H0. simpl in H0.

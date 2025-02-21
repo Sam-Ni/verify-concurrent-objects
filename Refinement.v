@@ -20,9 +20,6 @@ Definition refines (L1 L2 : lts li_null liB) : Prop :=
 
 Record fsim_properties (L1 L2 : lts li_null liB) 
                        (match_states: state L1 -> state L2 -> Prop) : Prop := {
-    (* fsim_match_valid_query:
-      forall q1 q2, match_query ccB wB q1 q2 ->
-      valid_query L2 q2 = valid_query L1 q1; *)
     fsim_match_new_states:
       forall s1, new_state L1 s1 -> 
       exists s2, new_state L2 s2 /\ match_states s1 s2;
