@@ -136,7 +136,7 @@ Section DCounter.
       st' = mkDCntState (pc' ++ [(pid, DInc6 ret)] ++ pc'') r ->
       register_counter_after_external st pid (RegCASOk ret) st'
   | register_counter_after_external_read_read_ok : forall pc st st' pid pc' pc'' ret r,
-      pc = pc' ++ [(pid, DRead1)] ++ pc'' ->
+      pc = pc' ++ [(pid, DRead2)] ++ pc'' ->
       st = mkDCntState pc r ->
       st' = mkDCntState (pc' ++ [(pid, DRead3 ret)] ++ pc'') r ->
       register_counter_after_external st pid (RegReadOk ret) st'
