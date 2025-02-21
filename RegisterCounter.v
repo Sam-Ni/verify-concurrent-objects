@@ -23,60 +23,6 @@ Definition no_inv_from_return (st' : register_counter.(state)) :=
   linked_after_external st pid ra st' ->
   pid # st'.(L1State).(Register.requests).
 
-Section StructureProperties.
-
-Variable A : Type.
-Implicit Types E F : env A.
-
-Lemma binds_neq_middle: forall F E x x1 v v1 v1',
-  binds x v (E ++ [(x1, v1)] ++ F) ->
-  x <> x1 ->
-  binds x v (E ++ [(x1, v1')] ++ F).
-Proof.
-  intros.
-  apply binds_concat_inv in H. intuition.
-  - eapply binds_concat_right; eauto.
-  - apply binds_concat_inv in H2. intuition.
-    -- unfold binds in H1. simpl in H1.
-      apply Nat.eqb_neq in H0.
-      rewrite H0 in H1. inversion H1.
-    -- eapply binds_concat_left; eauto.
-      eapply binds_push_neq; eauto.
-Qed.
-
-(* Lemma get_notin_eq: forall x inv inv' pid (pid_inv : A),
-  x <> pid ->
-  get x (inv ++ (pid, pid_inv) :: inv') =
-  get x (inv ++ inv').
-Proof.
-  induction inv; simpl; intros.
-  - apply Nat.eqb_neq in H.
-    rewrite H. reflexivity.
-  - destruct a.
-    destruct (x =? v)eqn:Heq.
-    -- reflexivity.
-    -- apply IHinv. assumption.
-Qed. *)
-
-Lemma get_notin_env: forall (inv : LibEnv.env A) inv' x,
-  x # inv ->
-  get x (inv ++ inv') =
-  get x inv'.
-Proof.
-  induction inv; simpl; intros.
-  - reflexivity.
-  - destruct a.
-    apply notin_union in H. intuition.
-    assert (x =? v = false).
-    apply Nat.eqb_neq.
-    apply notin_neq in H0; intuition.
-    rewrite H.
-    apply IHinv; auto.
-Qed.
-
-End StructureProperties.
-
-
 Lemma step_preserves_binds_DInc5: forall st st' pid pid' int,
   binds pid DInc5 st.(pc) ->
   step register_counter_impl st pid' int st' ->
@@ -424,31 +370,6 @@ Proof.
     -- apply IHvalid_execution_fragment; auto.
       eapply final_preserves_binds_DRead2; eauto.
 Qed.
-
-Section MoreDefinitions.
-
-Variables A : Type.
-
-Lemma binds_reconstruct: forall x v (l : env A),
-  binds x v l ->
-  exists l1 l2, l = l1 ++ [(x, v)] ++ l2.
-Proof.
-  induction l using env_ind; simpl; intros.
-  - inversion H.
-  - unfold binds in H. simpl in H.
-    destruct (x =? x0)eqn:Heq.
-    -- inversion H; subst.
-      exists []. exists l.
-      eapply Nat.eqb_eq in Heq.
-      subst; intuition.
-    -- apply IHl in H.
-      destruct H as [l1 [l2 Htmp]].
-      subst.
-      exists ((x0, v0)::l1).
-      exists l2. reflexivity.
-Qed.
-
-End MoreDefinitions.
 
 Fixpoint gather_requests' (pc : LibEnv.env RCounter_pc) (regst : state Register) : LibEnv.env Counter_query :=
   match pc with
@@ -1026,79 +947,6 @@ Definition f (s1 : register_counter.(state)) (s2 : counter.(state)) :=
   sameset (gather_responses' s1.(L2State).(RegisterCounterImpl.pc) s1.(L1State)) s2.(responses) /\
   s1.(L1State).(Register.value) = s2.(value).
 
-(* Section SubsetDef.
-
-Context {A : Type}.
-
-Lemma sameset_empty : forall (l : env A),
-  l = nil ->
-  sameset l l .
-Proof.
-  intros. subst.
-  repeat econstructor.
-
-End SubsetDef. *)
-
-Section List.
-
-Variable A : Type.
-
-Lemma push_inv: forall x (l : env A),
-  x :: l = [x] ++ l.
-Proof.
-  intros; simpl; auto.
-Qed.
-
-Lemma sameset_ExF_xEF: forall x (E F: env A),
-  ok (E ++ (x :: F)) ->
-  sameset (E ++ (x :: F))
-          (x :: (E ++ F)).
-Proof.
-  intros.
-  assert (sameset (E ++ (x :: F)) ((x :: F) ++ E)).
-  eapply sameset_concat_comm with (E:=(x :: F)). auto.
-  simpl in H0.
-  assert (sameset (x :: F ++ E) (x :: E ++ F)).
-  rewrite push_inv.
-  rewrite push_inv with (l:=E ++ F).
-  eapply sameset_concat with (F:=[x]).
-  eapply sameset_concat_comm.
-  eapply ok_remove with (F:=[x]) in H.
-  eapply ok_concat_comm. auto.
-  simpl. apply sameset_ok_inv in H0; intuition.
-  eapply trans_sameset; eauto.
-Qed.
-
-Lemma ok_ExF_xEF: forall (F E: env A) x,
-  ok (x :: (E ++ F)) ->
-  ok (E ++ (x :: F)).
-Proof.
-  intros. eapply ok_concat_comm. simpl.
-  destruct x.
-  econstructor; eauto.
-  inversion H; subst.
-  eapply ok_concat_comm; eauto.
-  inversion H; subst.
-  apply notin_concat in H4.
-  apply notin_concat. intuition.
-Qed.
-
-Lemma notin_get_none: forall pid (inv : env A),
-  pid # inv ->
-  get pid inv = None.
-Proof.
-  induction inv using env_ind; simpl; intros.
-  - reflexivity.
-  - apply notin_union in H. intuition.
-    apply notin_neq in H0.
-    apply Nat.eqb_neq in H0.
-    rewrite H0. assumption.
-Qed.
-
-End List.
-
-
-
 (* 
   The proof stuck in the case of fsim_simulation (to be more specific, when the action is int_cas in Register).
   Problem: the rule linked_step_L1_internal is too general 
@@ -1454,7 +1302,7 @@ Proof.
               rewrite gather_responses_notin_res; intuition.
               rewrite gather_responses_any_v_reg with (v':=value s2); intuition.
               rewrite gather_responses_any_v_reg with (v:=S (r pid)) (v':=value s2); intuition.
-              generalize sameset_ExF_xEF; intro.
+              (* generalize sameset_ExF_xEF; intro. *)
               eapply sameset_congruence with (F:= [(pid, CntIncOk)]) in H0; intuition.
               simpl in H0.
               eapply trans_sameset.
@@ -1740,7 +1588,7 @@ Proof.
               rewrite gather_responses_notin_res; intuition.
               (* rewrite gather_responses_any_v_reg with (v':=value s2); intuition.
               rewrite gather_responses_any_v_reg with (v:=S (r pid)) (v':=value s2); intuition. *)
-              generalize sameset_ExF_xEF; intro.
+              (* generalize sameset_ExF_xEF; intro. *)
               eapply sameset_congruence with (F:= [(pid, CntReadOk (value s2))]) in H0; intuition.
               simpl in H0.
               eapply trans_sameset.

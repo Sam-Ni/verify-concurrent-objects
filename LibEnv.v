@@ -73,6 +73,25 @@ Proof.
   auto. destruct a. apply H0. assumption.
 Qed.
 
+Lemma binds_reconstruct: forall x v (l : env A),
+  binds x v l ->
+  exists l1 l2, l = l1 ++ [(x, v)] ++ l2.
+Proof.
+  induction l using env_ind; simpl; intros.
+  - inversion H.
+  - unfold binds in H. simpl in H.
+    destruct (x =? x0)eqn:Heq.
+    -- inversion H; subst.
+      exists []. exists l.
+      eapply Nat.eqb_eq in Heq.
+      subst; intuition.
+    -- apply IHl in H.
+      destruct H as [l1 [l2 Htmp]].
+      subst.
+      exists ((x0, v0)::l1).
+      exists l2. reflexivity.
+Qed.
+
 End MoreDefinitions.
 
 Ltac binds_ind :=
@@ -83,7 +102,7 @@ Ltac binds_ind :=
   end;
   simpl; try discriminate.
 
-Section StrutureProperties.
+Section StructureProperties.
 
 Variable A : Type.
 Implicit Types E F : env A.
@@ -108,7 +127,23 @@ Proof.
     -- apply IHinv. assumption.
 Qed.
 
-End StrutureProperties.
+Lemma get_notin_env: forall (inv : LibEnv.env A) inv' x,
+  x # inv ->
+  get x (inv ++ inv') =
+  get x inv'.
+Proof.
+  induction inv; simpl; intros.
+  - reflexivity.
+  - destruct a.
+    apply notin_union in H. intuition.
+    assert (x =? v = false).
+    apply Nat.eqb_neq.
+    apply notin_neq in H0; intuition.
+    rewrite H.
+    apply IHinv; auto.
+Qed.
+
+End StructureProperties.
 
 Section Properties.
 
@@ -206,6 +241,22 @@ Proof.
     simpl in H0. apply notin_union in H0.
     destruct H0. intro. apply H0. simpl.
     intuition.
+Qed.
+
+Lemma binds_neq_middle: forall F E x x1 v v1 v1',
+  binds x v (E ++ [(x1, v1)] ++ F) ->
+  x <> x1 ->
+  binds x v (E ++ [(x1, v1')] ++ F).
+Proof.
+  intros.
+  apply binds_concat_inv in H. intuition.
+  - eapply binds_concat_right; eauto.
+  - apply binds_concat_inv in H2. intuition.
+    -- unfold binds in H1. simpl in H1.
+      apply Nat.eqb_neq in H0.
+      rewrite H0 in H1. inversion H1.
+    -- eapply binds_concat_left; eauto.
+      eapply binds_push_neq; eauto.
 Qed.
 
 Lemma ok_push_inv : forall E x v,
@@ -408,6 +459,30 @@ Proof.
     apply notin_union. intuition.
 Qed.
 
+Lemma notin_dom_concat_inv: forall x E1 E2,
+  x # E1 /\ x # E2 -> x # E1 ; E2.
+Proof.
+  induction E2 using env_ind; simpl; intros.
+  - intuition.
+  - intuition.
+    apply notin_union in H1.
+    intuition. apply notin_union; intuition.
+Qed.
+
+Lemma ok_middle: forall F E x v v',
+  ok (E ++ [(x, v)] ++ F) ->
+  ok (E ++ [(x, v')] ++ F).
+Proof.
+  induction E using env_ind; simpl; intros.
+  - inversion H; subst.
+    econstructor; eauto.
+  - inversion H; subst.
+    econstructor; eauto.
+    eapply notin_dom_concat_inv; eauto.
+    eapply notin_concat in H4.
+    intuition.
+Qed.
+
 End Properties.
 
 Ltac div_notin_dom :=
@@ -481,6 +556,31 @@ Proof.
     apply ok_middle_inv in H. notin_dom_solve.
 Qed.
 
+Lemma ok_ExF_xEF: forall (F E: env A) x,
+  ok (x :: (E ++ F)) ->
+  ok (E ++ (x :: F)).
+Proof.
+  intros. eapply ok_concat_comm. simpl.
+  destruct x.
+  econstructor; eauto.
+  inversion H; subst.
+  eapply ok_concat_comm; eauto.
+  inversion H; subst.
+  apply notin_concat in H4.
+  apply notin_concat. intuition.
+Qed.
+
+Lemma notin_get_none: forall pid (inv : env A),
+  pid # inv ->
+  get pid inv = None.
+Proof.
+  induction inv using env_ind; simpl; intros.
+  - reflexivity.
+  - apply notin_union in H. intuition.
+    apply notin_neq in H0.
+    apply Nat.eqb_neq in H0.
+    rewrite H0. assumption.
+Qed.
 
 Lemma binds_notin_neq : forall E x T y,
   binds x T E ->
@@ -898,6 +998,32 @@ Proof.
     apply sameset_push_comm. env_solve.
     apply ok_middle_inv in H. notin_dom_solve.
     env_solve.
+Qed.
+
+Lemma push_inv: forall x (l : env A),
+  x :: l = [x] ++ l.
+Proof.
+  intros; simpl; auto.
+Qed.
+
+Lemma sameset_ExF_xEF: forall x (E F: env A),
+  ok (E ++ (x :: F)) ->
+  sameset (E ++ (x :: F))
+          (x :: (E ++ F)).
+Proof.
+  intros.
+  assert (sameset (E ++ (x :: F)) ((x :: F) ++ E)).
+  eapply sameset_concat_comm with (E:=(x :: F)). auto.
+  simpl in H0.
+  assert (sameset (x :: F ++ E) (x :: E ++ F)).
+  rewrite push_inv.
+  rewrite push_inv with (l:=E ++ F).
+  eapply sameset_concat with (F:=[x]).
+  eapply sameset_concat_comm.
+  eapply ok_remove with (F:=[x]) in H.
+  eapply ok_concat_comm. auto.
+  simpl. apply sameset_ok_inv in H0; intuition.
+  eapply trans_sameset; eauto.
 Qed.
 
 Lemma sameset_congruence: forall E E1 E1' F,

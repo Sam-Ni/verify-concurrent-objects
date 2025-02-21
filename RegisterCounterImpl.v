@@ -201,37 +201,6 @@ Proof.
     apply ok_remove in H7; intuition.
 Qed.
 
-Section StrutureProperties.
-
-Variable A : Type.
-Implicit Types E F : env A.
-
-Lemma notin_dom_concat_inv: forall x E1 E2,
-  x # E1 /\ x # E2 -> x # E1 ; E2.
-Proof.
-  induction E2 using env_ind; simpl; intros.
-  - intuition.
-  - intuition.
-    apply notin_union in H1.
-    intuition. apply notin_union; intuition.
-Qed.
-
-Lemma ok_middle: forall F E x v v',
-  ok (E ++ [(x, v)] ++ F) ->
-  ok (E ++ [(x, v')] ++ F).
-Proof.
-  induction E using env_ind; simpl; intros.
-  - inversion H; subst.
-    econstructor; eauto.
-  - inversion H; subst.
-    econstructor; eauto.
-    eapply notin_dom_concat_inv; eauto.
-    eapply notin_concat in H4.
-    intuition.
-Qed.
-
-End StrutureProperties.
-
 Lemma regcntimpl_at_external_preserves_ok: forall st st' pid qb,
   at_external register_counter_impl st pid qb st' ->
   RegCntImplStateWF st ->
