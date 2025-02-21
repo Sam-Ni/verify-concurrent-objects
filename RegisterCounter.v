@@ -6,12 +6,12 @@ Require Import
   LibEnv
   Refinement
   Register
-  DCounter
+  RegisterCounterImpl
   Counter.
 Import ListNotations.
 
 (* 
-  Prove that the composition of register_counter_impl (DCounter.v) and register (Register.v)
+  Prove that the composition of register_counter_impl (RegisterCounterImpl.v) and register (Register.v)
   refines the atomic counter (Counter.v).
 *)
 Section RegisterCounter.
@@ -450,7 +450,7 @@ Qed.
 
 End MoreDefinitions.
 
-Fixpoint gather_requests' (pc : LibEnv.env DCounter_pc) (regst : state Register) : LibEnv.env Counter_query :=
+Fixpoint gather_requests' (pc : LibEnv.env RCounter_pc) (regst : state Register) : LibEnv.env Counter_query :=
   match pc with
   | nil => nil
   | ins :: pc' => 
@@ -491,7 +491,7 @@ Fixpoint gather_requests' (pc : LibEnv.env DCounter_pc) (regst : state Register)
         end)
   end.
 
-Fixpoint gather_responses' (pc : LibEnv.env DCounter_pc) (regst : state Register) : LibEnv.env Counter_reply :=
+Fixpoint gather_responses' (pc : LibEnv.env RCounter_pc) (regst : state Register) : LibEnv.env Counter_reply :=
   match pc with
   | nil => nil
   | ins :: pc' => 
@@ -542,7 +542,7 @@ Proof.
     simpl. simpl in H.
     apply notin_union in H. intuition.
     eapply IHpc in H1.
-    destruct d; simpl; try apply notin_union; eauto.
+    destruct r; simpl; try apply notin_union; eauto.
     -- destruct (get v (Register.requests regst)).
       + simpl. apply notin_union; eauto.
       + destruct (get v (Register.responses regst)).
@@ -573,7 +573,7 @@ Proof.
     simpl. simpl in H.
     apply notin_union in H. intuition.
     eapply IHpc in H1.
-    destruct d; simpl; try apply notin_union; eauto.
+    destruct r; simpl; try apply notin_union; eauto.
     -- destruct (get v (Register.requests regst)).
       + assumption.
       + destruct (get v (Register.responses regst)).
@@ -599,7 +599,7 @@ Proof.
   induction pc; simpl; intros.
   - reflexivity.
   - destruct a.
-    destruct d; simpl; rewrite IHpc; try reflexivity.
+    destruct r; simpl; rewrite IHpc; try reflexivity.
     -- destruct (get v (Register.requests regst)); simpl.
       + reflexivity.
       + destruct (get v (Register.responses regst)); simpl.
@@ -624,7 +624,7 @@ Proof.
   induction pc; simpl; intros.
   - reflexivity.
   - destruct a.
-    destruct d; simpl; rewrite IHpc; try reflexivity.
+    destruct r; simpl; rewrite IHpc; try reflexivity.
     -- destruct (get v (Register.requests regst)); simpl.
       + reflexivity.
       + destruct (get v (Register.responses regst)); simpl.
@@ -1022,8 +1022,8 @@ Qed.
   Potential problem: the mapping relation missed some details
 *)
 Definition f (s1 : register_counter.(state)) (s2 : counter.(state)) :=
-  sameset (gather_requests' s1.(L2State).(DCounter.pc) s1.(L1State)) s2.(requests) /\
-  sameset (gather_responses' s1.(L2State).(DCounter.pc) s1.(L1State)) s2.(responses) /\
+  sameset (gather_requests' s1.(L2State).(RegisterCounterImpl.pc) s1.(L1State)) s2.(requests) /\
+  sameset (gather_responses' s1.(L2State).(RegisterCounterImpl.pc) s1.(L1State)) s2.(responses) /\
   s1.(L1State).(Register.value) = s2.(value).
 
 (* Section SubsetDef.
